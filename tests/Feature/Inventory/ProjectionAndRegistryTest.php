@@ -100,4 +100,17 @@ final class ProjectionAndRegistryTest extends InventoryTestCase
         $this->receive([$this->line('5')]);
         $this->cmd('PATCH', "products/{$this->egg}", ['base_uom' => 'PCS'])->assertStatus(422)->assertJsonPath('error.code', 'PRODUCT_UOM_LOCKED');
     }
+
+    public function test_product_classification_is_locked_once_stock_moved(): void
+    {
+        $this->receive([$this->line('5')]);
+
+        $this->cmd('PATCH', "products/{$this->egg}", ['classification' => 'PACKAGING'])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'PRODUCT_CLASSIFICATION_LOCKED');
+
+        $this->get_("products/{$this->egg}")
+            ->assertOk()
+            ->assertJsonPath('data.classification', 'SELLABLE');
+    }
 }

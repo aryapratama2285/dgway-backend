@@ -104,6 +104,7 @@ The "meaning" column is taken from the server message (‹…› = value filled 
 | `CATEGORY_TOO_DEEP` | 422 | Category hierarchy may be at most ‹…› levels deep. |
 | `DESCRIPTION_TOO_LONG` | 422 | Description must be at most ‹…› characters. |
 | `PRODUCT_UOM_LOCKED` | 422 | Base UOM of ‹…› cannot change after it has been used in transactions. Create a new SKU instead. |
+| `PRODUCT_CLASSIFICATION_LOCKED` | 422 | Classification of ‹…› cannot change after it has been used in transactions. Create a new SKU instead. |
 | `UOM_UNKNOWN` | 422 | Unit of measure '‹…›' does not exist or is inactive. |
 
 ### Partner

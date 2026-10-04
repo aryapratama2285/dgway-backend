@@ -12,7 +12,10 @@ use App\Domain\Shared\Quantity\Uom;
 use App\Domain\Shared\Text\Name;
 
 /**
- * A sellable / purchasable item identified by a unique SKU.
+ * An inventory-managed item identified by a unique SKU.
+ *
+ * Its primary economic/operational role is expressed by ProductClassification
+ * (SELLABLE, PACKAGING or CONSUMABLE).
  *
  * In the MVP one Product = one SKU. Differences that matter commercially
  * (e.g. "Telur Ayam Grade A" vs "Grade B") are separate SKUs, which keeps
@@ -42,20 +45,47 @@ final class Product extends AggregateRoot
         private Uom $baseUom,
         private ?string $description,
         private bool $active,
+        private ProductClassification $classification,
     ) {
         parent::__construct($id, $version);
     }
 
-    public static function create(Id $id, BusinessCode $sku, Name $name, ProductCategory $category, Uom $baseUom, ?string $description = null): self
-    {
+    public static function create(
+        Id $id,
+        BusinessCode $sku,
+        Name $name,
+        ProductCategory $category,
+        Uom $baseUom,
+        ?string $description = null,
+        ProductClassification $classification = ProductClassification::SELLABLE,
+    ): self {
         self::assertCategoryUsable($category);
 
-        return new self($id, 0, $sku, $name, $category->id(), $baseUom, self::cleanDescription($description), true);
+        return new self(
+            $id,
+            0,
+            $sku,
+            $name,
+            $category->id(),
+            $baseUom,
+            self::cleanDescription($description),
+            true,
+            $classification,
+        );
     }
 
-    public static function reconstitute(Id $id, int $version, BusinessCode $sku, Name $name, Id $categoryId, Uom $baseUom, ?string $description, bool $active): self
-    {
-        return new self($id, $version, $sku, $name, $categoryId, $baseUom, $description, $active);
+    public static function reconstitute(
+        Id $id,
+        int $version,
+        BusinessCode $sku,
+        Name $name,
+        Id $categoryId,
+        Uom $baseUom,
+        ?string $description,
+        bool $active,
+        ProductClassification $classification = ProductClassification::SELLABLE,
+    ): self {
+        return new self($id, $version, $sku, $name, $categoryId, $baseUom, $description, $active, $classification);
     }
 
     public function rename(Name $name): bool
@@ -111,6 +141,27 @@ final class Product extends AggregateRoot
         return true;
     }
 
+    /**
+     * Classification is locked once the SKU has transactional history because
+     * changing it would reinterpret the economic meaning of historical data.
+     */
+    public function reclassify(ProductClassification $classification, bool $usedInTransactions): bool
+    {
+        if ($this->classification === $classification) {
+            return false;
+        }
+        if ($usedInTransactions) {
+            throw InvariantViolation::because(
+                'PRODUCT_CLASSIFICATION_LOCKED',
+                "Classification of {$this->sku->value} cannot change after it has been used in transactions. Create a new SKU instead.",
+            );
+        }
+
+        $this->classification = $classification;
+
+        return true;
+    }
+
     public function activate(): bool
     {
         if ($this->active) {
@@ -160,6 +211,11 @@ final class Product extends AggregateRoot
         return $this->description;
     }
 
+    public function classification(): ProductClassification
+    {
+        return $this->classification;
+    }
+
     public function isActive(): bool
     {
         return $this->active;
@@ -173,6 +229,7 @@ final class Product extends AggregateRoot
             'category_id' => $this->categoryId->value,
             'base_uom' => $this->baseUom->code,
             'description' => $this->description,
+            'classification' => $this->classification->value,
             'is_active' => $this->active,
         ];
     }

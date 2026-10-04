@@ -836,8 +836,10 @@ Owner **Catalog** · aggregate Product · kind **master** · migration **preserv
 | version | integer | no | 1 |
 | created_at | timestamp(0) with time zone | yes |  |
 | updated_at | timestamp(0) with time zone | yes |  |
+| classification | character varying(20) | no | 'SELLABLE'::character varying |
 
 Constraints:
+- CHECK `products_classification_check`: `CHECK (((classification)::text = ANY ((ARRAY['SELLABLE'::character varying, 'PACKAGING'::character varying, 'CONSUMABLE'::character varying])::text[])))`
 - CHECK `products_description_length_check`: `CHECK (((description IS NULL) OR (char_length(description) <= 1000)))`
 - CHECK `products_sku_format_check`: `CHECK (((sku)::text ~ '^[A-Z0-9][A-Z0-9._-]{0,39}$'::text))`
 - CHECK `products_version_check`: `CHECK ((version >= 1))`

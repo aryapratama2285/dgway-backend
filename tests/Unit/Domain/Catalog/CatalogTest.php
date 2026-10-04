@@ -6,6 +6,7 @@ namespace Tests\Unit\Domain\Catalog;
 
 use App\Domain\Catalog\Product;
 use App\Domain\Catalog\ProductCategory;
+use App\Domain\Catalog\ProductClassification;
 use App\Domain\Shared\Code\BusinessCode;
 use App\Domain\Shared\Exception\InvariantViolation;
 use App\Domain\Shared\Identity\Id;
@@ -167,6 +168,30 @@ final class CatalogTest extends TestCase
         $this->assertFalse($p->describe(null), 'already null');
     }
 
+    public function test_product_classification_defaults_to_sellable_and_can_change_before_transaction(): void
+    {
+        $p = $this->egg();
+
+        $this->assertSame(ProductClassification::SELLABLE, $p->classification());
+        $this->assertTrue($p->reclassify(ProductClassification::PACKAGING, usedInTransactions: false));
+        $this->assertSame(ProductClassification::PACKAGING, $p->classification());
+        $this->assertFalse($p->reclassify(ProductClassification::PACKAGING, usedInTransactions: false));
+    }
+
+    public function test_product_classification_locked_after_transactions(): void
+    {
+        $p = $this->egg();
+
+        try {
+            $p->reclassify(ProductClassification::CONSUMABLE, usedInTransactions: true);
+            $this->fail();
+        } catch (InvariantViolation $e) {
+            $this->assertSame('PRODUCT_CLASSIFICATION_LOCKED', $e->errorCode());
+        }
+
+        $this->assertSame(ProductClassification::SELLABLE, $p->classification());
+    }
+
     public function test_base_uom_change_allowed_before_any_transaction(): void
     {
         $p = $this->egg();
@@ -202,8 +227,8 @@ final class CatalogTest extends TestCase
     public function test_snapshot_for_audit(): void
     {
         $this->assertSame(
-            ['sku' => 'TLR-A', 'base_uom' => 'KG', 'is_active' => true],
-            array_intersect_key($this->egg()->snapshot(), array_flip(['sku', 'base_uom', 'is_active'])),
+            ['sku' => 'TLR-A', 'base_uom' => 'KG', 'classification' => 'SELLABLE', 'is_active' => true],
+            array_intersect_key($this->egg()->snapshot(), array_flip(['sku', 'base_uom', 'classification', 'is_active'])),
         );
     }
 }

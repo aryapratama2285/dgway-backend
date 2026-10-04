@@ -9,6 +9,7 @@ use App\Application\Shared\Command\ExpectedVersion;
 use App\Application\Shared\Command\Patch;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Catalog\Product;
+use App\Domain\Catalog\ProductClassification;
 use App\Domain\Catalog\ProductCategoryRepository;
 use App\Domain\Catalog\ProductRepository;
 use App\Domain\Shared\Identity\Actor;
@@ -52,6 +53,13 @@ final class UpdateProduct
             if ($patch->has('base_uom')) {
                 $uom = $this->uoms->activeOrFail((string) $patch->string('base_uom'));
                 $changed = $product->changeBaseUom($uom, $this->usage->isUsedInTransactions($product->id())) || $changed;
+            }
+            if ($patch->has('classification')) {
+                $classification = ProductClassification::from((string) $patch->string('classification'));
+                $changed = $product->reclassify(
+                    $classification,
+                    $this->usage->isUsedInTransactions($product->id()),
+                ) || $changed;
             }
 
             if ($changed) {

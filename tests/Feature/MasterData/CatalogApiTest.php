@@ -36,9 +36,36 @@ final class CatalogApiTest extends MasterDataTestCase
             ->assertJsonPath('data.name', 'Telur Ayam Grade A')
             ->assertJsonPath('data.base_uom.code', 'KG')
             ->assertJsonPath('data.base_uom.precision', 3)
+            ->assertJsonPath('data.classification', 'SELLABLE')
             ->assertJsonPath('data.is_active', true);
 
         $this->get_('products/'.$res->json('data.id'))->assertOk()->assertJsonPath('data.description', 'Berat 60–65 g');
+    }
+
+    public function test_product_classification_can_be_created_and_changed_before_transaction(): void
+    {
+        $cat = $this->category('PACKAGING');
+
+        $res = $this->cmd('POST', 'products', [
+            'sku' => 'TB-60X100',
+            'name' => 'Trash Bag 60x100',
+            'category_id' => $cat,
+            'base_uom' => 'PCS',
+            'classification' => 'PACKAGING',
+        ]);
+
+        $id = $res->assertCreated()
+            ->assertJsonPath('data.classification', 'PACKAGING')
+            ->json('data.id');
+
+        $this->cmd('PATCH', "products/{$id}", ['classification' => 'CONSUMABLE'])
+            ->assertOk()
+            ->assertJsonPath('data.classification', 'CONSUMABLE')
+            ->assertJsonPath('data.version', 2);
+
+        $this->get_("products/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.classification', 'CONSUMABLE');
     }
 
     public function test_non_egg_products_work_the_same_way(): void
@@ -88,6 +115,13 @@ final class CatalogApiTest extends MasterDataTestCase
             ->assertStatus(404)->assertJsonPath('error.code', 'NOT_FOUND');
         $this->cmd('POST', 'products', ['sku' => 'TLR-D'])
             ->assertStatus(422)->assertJsonPath('error.code', 'VALIDATION_FAILED');
+        $this->cmd('POST', 'products', [
+            'sku' => 'TLR-E',
+            'name' => 'x',
+            'category_id' => $cat,
+            'base_uom' => 'KG',
+            'classification' => 'ASSET',
+        ])->assertStatus(422)->assertJsonPath('error.code', 'VALIDATION_FAILED');
         $this->assertSame(0, DB::table('products')->count());
     }
 

@@ -43,12 +43,21 @@ final class ProductController extends ApiController
             'sku' => R::code(),
             'name' => R::name(),
             'category_id' => ['required', 'uuid'],
+            'classification' => ['sometimes', 'string', 'in:SELLABLE,PACKAGING,CONSUMABLE'],
             'base_uom' => ['required', 'string', 'max:16'],
             'description' => ['nullable', 'string', 'max:1000'],
         ]);
 
         return $this->command($request, 'product.create',
-            fn (Actor $a) => $create->execute($a, $v['sku'], $v['name'], $v['category_id'], $v['base_uom'], $v['description'] ?? null),
+            fn (Actor $a) => $create->execute(
+                $a,
+                $v['sku'],
+                $v['name'],
+                $v['category_id'],
+                $v['base_uom'],
+                $v['description'] ?? null,
+                $v['classification'] ?? 'SELLABLE',
+            ),
             MasterDataResources::product(...), 201, 'product');
     }
 
@@ -57,6 +66,7 @@ final class ProductController extends ApiController
         $v = $request->validate([
             'name' => R::name(false),
             'category_id' => ['sometimes', 'uuid'],
+            'classification' => ['sometimes', 'string', 'in:SELLABLE,PACKAGING,CONSUMABLE'],
             'base_uom' => ['sometimes', 'string', 'max:16'],
             'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'sku' => ['prohibited'],

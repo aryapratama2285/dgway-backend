@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Persistence\Repository;
 
 use App\Domain\Catalog\Product;
+use App\Domain\Catalog\ProductClassification;
 use App\Domain\Catalog\ProductRepository;
 use App\Domain\Catalog\UnitOfMeasureRepository;
 use App\Domain\Shared\Code\BusinessCode;
@@ -62,6 +63,7 @@ final class DbProductRepository implements ProductRepository
             $uom,
             $r->description,
             (bool) $r->is_active,
+            ProductClassification::from($r->classification ?? 'SELLABLE'),
         );
     }
 
@@ -72,6 +74,7 @@ final class DbProductRepository implements ProductRepository
             'sku' => $p->sku()->value,
             'name' => $p->name()->value,
             'category_id' => $p->categoryId()->value,
+            'classification' => $p->classification()->value,
             'base_uom_code' => $p->baseUom()->code,
             'description' => $p->description(),
             'is_active' => $p->isActive(),

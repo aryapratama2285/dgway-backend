@@ -38,6 +38,7 @@ final class MasterDataResources
             'sku' => $p->sku()->value,
             'name' => $p->name()->value,
             'category_id' => $p->categoryId()->value,
+            'classification' => $p->classification()->value,
             'base_uom' => ['code' => $p->baseUom()->code, 'precision' => $p->baseUom()->precision],
             'description' => $p->description(),
             'is_active' => $p->isActive(),

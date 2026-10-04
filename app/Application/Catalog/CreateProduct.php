@@ -8,6 +8,7 @@ use App\Application\Shared\Audit\AuditTrail;
 use App\Application\Shared\Identity\IdentityGenerator;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Catalog\Product;
+use App\Domain\Catalog\ProductClassification;
 use App\Domain\Catalog\ProductCategoryRepository;
 use App\Domain\Catalog\ProductRepository;
 use App\Domain\Shared\Code\BusinessCode;
@@ -27,9 +28,16 @@ final class CreateProduct
     ) {
     }
 
-    public function execute(Actor $actor, string $sku, string $name, string $categoryId, string $baseUom, ?string $description = null): Product
-    {
-        return $this->tx->run(function () use ($actor, $sku, $name, $categoryId, $baseUom, $description): Product {
+    public function execute(
+        Actor $actor,
+        string $sku,
+        string $name,
+        string $categoryId,
+        string $baseUom,
+        ?string $description = null,
+        string $classification = 'SELLABLE',
+    ): Product {
+        return $this->tx->run(function () use ($actor, $sku, $name, $categoryId, $baseUom, $description, $classification): Product {
             $product = Product::create(
                 $this->ids->next(),
                 BusinessCode::of($sku, 'SKU'),
@@ -37,6 +45,7 @@ final class CreateProduct
                 $this->categories->get(Id::fromString($categoryId)),
                 $this->uoms->activeOrFail($baseUom),
                 $description,
+                ProductClassification::from($classification),
             );
 
             $this->products->add($product);
