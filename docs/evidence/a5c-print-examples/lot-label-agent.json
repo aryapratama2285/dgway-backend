@@ -1,0 +1,88 @@
+{
+    "data": {
+        "schema_version": 1,
+        "document_type": "LOT_LABEL",
+        "generated_at": "2026-10-03T12:30:06+00:00",
+        "business": {
+            "business_name": "DG WAY",
+            "business_subtitle": "Supply & Distribution",
+            "address": null,
+            "phone": null,
+            "footer_text": null
+        },
+        "layout": {
+            "medium": "LABEL"
+        },
+        "document": {
+            "lot_id": "01a101be-3950-730d-8cde-6788025f5e28",
+            "lot_number": "LOT-261003-002",
+            "origin": "RECEIPT",
+            "product": {
+                "sku": "TELUR-STD",
+                "name": "Telur Ayam Standar"
+            },
+            "node": {
+                "code": "DG-WAY-PRIMARY"
+            },
+            "received_by_dgway": {
+                "business_date": "2026-10-03",
+                "received_at": "2026-10-03T12:30:06+00:00"
+            },
+            "collection_date": null,
+            "supplier_reference": null,
+            "original_quantity": {
+                "value": "40.0000",
+                "formatted": "40",
+                "uom": "KG"
+            },
+            "uom": "KG",
+            "supplier": {
+                "code": "SUP-AGEN-CIMAHI",
+                "name": "Agen Telur Cimahi"
+            },
+            "goods_receipt": {
+                "number": "GR-261003-002"
+            },
+            "derived_from": null,
+            "best_before_date": null,
+            "provenance": "RECORDED",
+            "display_lines": [
+                {
+                    "key": "product",
+                    "label": "Produk",
+                    "value": "TELUR-STD \u2014 Telur Ayam Standar"
+                },
+                {
+                    "key": "received_date",
+                    "label": "Diterima DG Way",
+                    "value": "2026-10-03"
+                },
+                {
+                    "key": "supplier",
+                    "label": "Pemasok",
+                    "value": "Agen Telur Cimahi"
+                },
+                {
+                    "key": "goods_receipt",
+                    "label": "Penerimaan",
+                    "value": "GR-261003-002"
+                },
+                {
+                    "key": "original_quantity",
+                    "label": "Jumlah Awal",
+                    "value": "40 KG"
+                }
+            ],
+            "codes": {
+                "qr": {
+                    "payload": "dgway://lot/01a101be-3950-730d-8cde-6788025f5e28",
+                    "contract_version": 1
+                },
+                "barcode": {
+                    "symbology": "CODE128",
+                    "value": "LOT-261003-002"
+                }
+            }
+        }
+    }
+}

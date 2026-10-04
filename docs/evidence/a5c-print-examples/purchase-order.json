@@ -1,0 +1,72 @@
+{
+    "data": {
+        "schema_version": 1,
+        "document_type": "PURCHASE_ORDER",
+        "generated_at": "2026-10-03T12:30:04+00:00",
+        "business": {
+            "business_name": "DG WAY",
+            "business_subtitle": "Supply & Distribution",
+            "address": null,
+            "phone": null,
+            "footer_text": null
+        },
+        "layout": {
+            "medium": "RECEIPT",
+            "paper_width_mm": 80,
+            "supported_widths_mm": [
+                58,
+                80
+            ]
+        },
+        "document": {
+            "purchase_order_id": "01a101be-31fa-713f-911f-9763bd6f8854",
+            "number": "PO-261003-001",
+            "status": "CONFIRMED",
+            "notice": null,
+            "business_date": "2026-10-03",
+            "currency": "IDR",
+            "supplier": {
+                "code": "SUP-PETERNAKAN-BANDUNG",
+                "name": "Peternakan Bandung"
+            },
+            "node": {
+                "code": "DG-WAY-PRIMARY",
+                "name": "DG Way Primary Node"
+            },
+            "operator": {
+                "id": "01a101be-24bd-723c-9d2f-56a3f17a0ae7",
+                "name": "Owner"
+            },
+            "lines": [
+                {
+                    "line_no": 1,
+                    "sku": "TELUR-STD",
+                    "name": "Telur Ayam Standar",
+                    "ordered_quantity": {
+                        "value": "150.0000",
+                        "formatted": "150",
+                        "uom": "KG"
+                    },
+                    "received_quantity": {
+                        "value": "0.0000",
+                        "formatted": "0",
+                        "uom": "KG"
+                    },
+                    "unit_cost": {
+                        "amount": "23000.0000",
+                        "formatted": "Rp23.000"
+                    },
+                    "line_total": {
+                        "amount": "3450000.0000",
+                        "formatted": "Rp3.450.000"
+                    }
+                }
+            ],
+            "total_amount": {
+                "amount": "3450000.0000",
+                "formatted": "Rp3.450.000"
+            },
+            "notes": null
+        }
+    }
+}

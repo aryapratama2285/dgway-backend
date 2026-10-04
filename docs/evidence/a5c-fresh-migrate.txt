@@ -1,0 +1,28 @@
+
+   INFO  Preparing database.  
+
+  Creating migration table ....................................... 8.99ms DONE
+
+   INFO  Running migrations.  
+
+  0001_01_01_000000_create_users_table ........................... 5.61ms DONE
+  0001_01_01_000001_create_cache_table ........................... 5.42ms DONE
+  0001_01_01_000002_create_jobs_table ............................ 9.77ms DONE
+  2026_10_03_000100_create_personal_access_tokens_table .......... 6.22ms DONE
+  2026_10_03_000200_create_append_only_guard_function ............ 1.47ms DONE
+  2026_10_03_000300_create_audit_logs_table ...................... 9.57ms DONE
+  2026_10_03_000400_create_idempotency_keys_table ................ 7.77ms DONE
+  2026_10_03_000500_create_document_sequences_table .............. 2.67ms DONE
+  2026_10_03_000600_create_uoms_table ............................ 5.59ms DONE
+  2026_10_03_100100_create_catalog_tables ....................... 15.76ms DONE
+  2026_10_03_100200_create_business_partner_tables .............. 17.69ms DONE
+  2026_10_03_100300_create_network_tables ....................... 11.06ms DONE
+  2026_10_03_100400_store_idempotent_responses_verbatim .......... 4.56ms DONE
+  2026_10_03_200100_create_procurement_tables ................... 47.48ms DONE
+  2026_10_03_200200_create_inventory_ledger_tables .............. 44.81ms DONE
+  2026_10_03_300100_create_sales_tables ......................... 78.22ms DONE
+  2026_10_03_400100_guard_master_data_identity ................... 2.04ms DONE
+  2026_10_04_100100_create_inventory_lots ....................... 33.37ms DONE
+  2026_10_05_100100_add_lot_upstream_facts ....................... 2.37ms DONE
+  2026_10_05_100200_create_print_settings ........................ 6.98ms DONE
+

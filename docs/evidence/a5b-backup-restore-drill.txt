@@ -1,0 +1,53 @@
+# A5-B backup/restore drill (dgway_smoke → dump → dgway_restore)
+== 1. fingerprint of the source
+Fingerprint written to /tmp/claude-0/a5b-evidence/smoke-src.json
+== 2. pg_dump (custom format)
+exit=0 size=171454 bytes
+== 3. create empty target + pg_restore
+NOTICE:  database "dgway_restore" does not exist, skipping
+exit=0
+== 4. migrations on the restored DB (expect nothing to run)
+
+   INFO  Nothing to migrate.  
+
+  2026_10_03_400100_guard_master_data_identity ....................... [1] Ran  
+  2026_10_04_100100_create_inventory_lots ............................ [1] Ran  
+
+== 5. fingerprint compare (strict)
+Reconciliation OK: fingerprint identical.
+exit=0
+== 6. inventory verify
+Inventory projection is consistent with the ledger.
+exit=0
+== 7. guards survived the restore (append-only)
+ERROR:  Table inventory_lots is append-only: UPDATE is not allowed
+ERROR:  Table stock_movements is append-only: DELETE is not allowed
+== 8. triggers / functions present
+34
+34
+== 9. dgway:doctor against the restored DB (dev env rules)
+Rules: local
++-----------------------------------+--------+-------------------------------------------------------------------------------------------------+
+| check                             | result | detail                                                                                          |
++-----------------------------------+--------+-------------------------------------------------------------------------------------------------+
+| APP_KEY                           | OK     | set (value not shown)                                                                           |
+| APP_ENV                           | OK     | APP_ENV=local (production also blocks destructive DB commands: DB::prohibitDestructiveCommands) |
+| APP_DEBUG                         | OK     | true (stack traces would reach clients)                                                         |
+| LOG_LEVEL                         | OK     | level=debug                                                                                     |
+| app.timezone                      | OK     | app.timezone=UTC (instants are stored in UTC)                                                   |
+| DGWAY_BUSINESS_TIMEZONE           | OK     | Asia/Jakarta                                                                                    |
+| business timezone is Asia/Jakarta | OK     | Asia/Jakarta                                                                                    |
+| DB_CONNECTION                     | OK     | driver=pgsql (PostgreSQL required: triggers, CHECKs, deferred constraints)                        |
+| DB_HOST                           | OK     | set                                                                                             |
+| DB_DATABASE                       | OK     | set                                                                                             |
+| DB_USERNAME                       | OK     | set                                                                                             |
+| DB_PASSWORD                       | OK     | set (value not shown)                                                                           |
+| DB_SSLMODE                        | OK     | sslmode=prefer host=local                                                                       |
+| database reachable                | OK     | ok                                                                                              |
+| migrations                        | OK     | all applied                                                                                     |
+| bootstrap: default node           | OK     | DG-WAY-PRIMARY                                                                                  |
+| bootstrap: walk-in customer       | OK     | WALK-IN                                                                                         |
+| bootstrap: operator               | OK     | at least one active operator (dgway:bootstrap --owner-email=… --password-stdin)                 |
++-----------------------------------+--------+-------------------------------------------------------------------------------------------------+
+Configuration OK.
+exit=0

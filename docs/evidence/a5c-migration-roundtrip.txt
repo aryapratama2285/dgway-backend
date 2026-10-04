@@ -1,0 +1,106 @@
+################ dev DB preparation: roll back A5-C applied during development, compare with the fingerprint taken before any A5-C change
+
+   INFO  Rolling back migrations.  
+
+  2026_10_05_100200_create_print_settings ....................... 11.09ms DONE
+  2026_10_05_100100_add_lot_upstream_facts ....................... 5.39ms DONE
+
+Reconciliation OK: fingerprint identical.
+exit=0
+################ database: dgway
+== A. fingerprint before A5-C taken: dev-before.json
+== B. migrate (A5-C up)
+
+   INFO  Running migrations.  
+
+  2026_10_05_100100_add_lot_upstream_facts ....................... 5.55ms DONE
+  2026_10_05_100200_create_print_settings ........................ 9.25ms DONE
+
+exit=0
+== C. compare vs pre-A5-C --allow-additions
+  added (accepted): invariants.lots.upstream
+  added (accepted): checksums.goods_receipt_lines+a5c
+  added (accepted): checksums.inventory_lots+a5c
+  added (accepted): checksums.print_settings
+Reconciliation OK: fingerprint identical.
+exit=0
+== D. no collection date / supplier reference fabricated for existing lots and receipt lines
+lots=1 with_collection_date=0 with_supplier_reference=0
+gr_lines=1 with_collection_date=0
+== E. inventory verify
+Inventory projection is consistent with the ledger.
+exit=0
+== F. rollback A5-C (2 migrations)
+
+   INFO  Rolling back migrations.  
+
+  2026_10_05_100200_create_print_settings ........................ 6.69ms DONE
+  2026_10_05_100100_add_lot_upstream_facts ....................... 2.28ms DONE
+
+exit=0
+== G. strict compare vs pre-A5-C
+Reconciliation OK: fingerprint identical.
+exit=0
+== H. re-migrate
+
+   INFO  Running migrations.  
+
+  2026_10_05_100100_add_lot_upstream_facts ....................... 4.42ms DONE
+  2026_10_05_100200_create_print_settings ....................... 12.31ms DONE
+
+exit=0
+== I. strict compare vs first up
+Reconciliation OK: fingerprint identical.
+exit=0
+== J. verify
+Inventory projection is consistent with the ledger.
+exit=0
+
+################ database: dgway_smoke
+== A. fingerprint before A5-C taken: smoke-before.json
+== B. migrate (A5-C up)
+
+   INFO  Running migrations.  
+
+  2026_10_05_100100_add_lot_upstream_facts ...................... 10.47ms DONE
+  2026_10_05_100200_create_print_settings ....................... 12.67ms DONE
+
+exit=0
+== C. compare vs pre-A5-C --allow-additions
+  added (accepted): invariants.lots.upstream
+  added (accepted): checksums.goods_receipt_lines+a5c
+  added (accepted): checksums.inventory_lots+a5c
+  added (accepted): checksums.print_settings
+Reconciliation OK: fingerprint identical.
+exit=0
+== D. no collection date / supplier reference fabricated for existing lots and receipt lines
+lots=1 with_collection_date=0 with_supplier_reference=0
+gr_lines=1 with_collection_date=0
+== E. inventory verify
+Inventory projection is consistent with the ledger.
+exit=0
+== F. rollback A5-C (2 migrations)
+
+   INFO  Rolling back migrations.  
+
+  2026_10_05_100200_create_print_settings ....................... 10.47ms DONE
+  2026_10_05_100100_add_lot_upstream_facts ....................... 2.93ms DONE
+
+exit=0
+== G. strict compare vs pre-A5-C
+Reconciliation OK: fingerprint identical.
+exit=0
+== H. re-migrate
+
+   INFO  Running migrations.  
+
+  2026_10_05_100100_add_lot_upstream_facts ....................... 3.89ms DONE
+  2026_10_05_100200_create_print_settings ........................ 9.24ms DONE
+
+exit=0
+== I. strict compare vs first up
+Reconciliation OK: fingerprint identical.
+exit=0
+== J. verify
+Inventory projection is consistent with the ledger.
+exit=0

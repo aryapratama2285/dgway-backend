@@ -1,0 +1,34 @@
+## migrate:status (dev)
+
+  Migration name .............................................. Batch / Status  
+  0001_01_01_000000_create_users_table ............................... [1] Ran  
+  0001_01_01_000001_create_cache_table ............................... [1] Ran  
+  0001_01_01_000002_create_jobs_table ................................ [1] Ran  
+  2026_10_03_000100_create_personal_access_tokens_table .............. [1] Ran  
+  2026_10_03_000200_create_append_only_guard_function ................ [1] Ran  
+  2026_10_03_000300_create_audit_logs_table .......................... [1] Ran  
+  2026_10_03_000400_create_idempotency_keys_table .................... [1] Ran  
+  2026_10_03_000500_create_document_sequences_table .................. [1] Ran  
+  2026_10_03_000600_create_uoms_table ................................ [1] Ran  
+  2026_10_03_100100_create_catalog_tables ............................ [1] Ran  
+  2026_10_03_100200_create_business_partner_tables ................... [1] Ran  
+  2026_10_03_100300_create_network_tables ............................ [1] Ran  
+  2026_10_03_100400_store_idempotent_responses_verbatim .............. [1] Ran  
+  2026_10_03_200100_create_procurement_tables ........................ [1] Ran  
+  2026_10_03_200200_create_inventory_ledger_tables ................... [1] Ran  
+  2026_10_03_300100_create_sales_tables .............................. [1] Ran  
+  2026_10_03_400100_guard_master_data_identity ....................... [2] Ran  
+
+## rollback identity-guard migration only, then re-migrate
+
+   INFO  Rolling back migrations.  
+
+  2026_10_03_400100_guard_master_data_identity ................... 9.66ms DONE
+
+identity_guard triggers after rollback: 0
+
+   INFO  Running migrations.  
+
+  2026_10_03_400100_guard_master_data_identity ................... 8.74ms DONE
+
+identity_guard triggers after migrate: 8

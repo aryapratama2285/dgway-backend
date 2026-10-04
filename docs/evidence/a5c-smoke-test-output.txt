@@ -1,0 +1,82 @@
+== LOGIN + DEFAULTS ==
+login ok (token redacted)
+  node=DG-WAY-PRIMARY
+GET print/settings (defaults)                                      HTTP 200  {"data":{"business_name":"DG WAY","business_subtitle":"Supply & Distribution","address":null,"phone":null,"foo
+  ('DG WAY', 'Supply & Distribution', 80, [58, 80], True)
+
+== MASTER DATA ==
+supplier Peternakan Bandung (direct farm)                          HTTP 201  {"data":{"id":"01a101be-3023-72e7-86df-dd23e75df53a","code":"SUP-PETERNAKAN-BANDUNG","name":"Peternakan Bandun
+supplier Agen Telur Cimahi (agent)                                 HTTP 201  {"data":{"id":"01a101be-3071-73ce-8560-9785ad55f1d2","code":"SUP-AGEN-CIMAHI","name":"Agen Telur Cimahi","lega
+customer Catering ABC                                              HTTP 201  {"data":{"id":"01a101be-30be-730a-957c-230460bd0c62","code":"CUS-CATERING-ABC","name":"Catering ABC","legal_na
+product TELUR-STD                                                  HTTP 201  {"data":{"id":"01a101be-314d-713f-9b88-717297c210cd","sku":"TELUR-STD","name":"Telur Ayam Standar","category_i
+  business date today=2026-10-03  farm collection date=2026-10-02
+
+== DIRECT FARM: PO 150 kg → GR (collection_date=2026-10-02, 140 ACCEPT / 10 LOSS) ==
+POST purchase-orders                                               HTTP 201  {"data":{"id":"01a101be-31fa-713f-911f-9763bd6f8854","number":"PO-261003-001","status":"DRAFT","supplier_id":"
+confirm PO                                                         HTTP 200  {"data":{"id":"01a101be-31fa-713f-911f-9763bd6f8854","number":"PO-261003-001","status":"CONFIRMED","supplier_i
+GET purchase-orders/{id}/print                                     HTTP 200  {"data":{"schema_version":1,"document_type":"PURCHASE_ORDER","generated_at":"2026-10-03T12:30:04+00:00","busin
+POST goods-receipts (direct farm)                                  HTTP 201  {"data":{"id":"01a101be-32e2-72d0-9b09-7243435b218c","number":"GR-261003-001","status":"DRAFT","type":"PURCHAS
+  line collection_date=2026-10-02 supplier_reference=None
+post GR                                                            HTTP 200  {"data":{"id":"01a101be-32e2-72d0-9b09-7243435b218c","number":"GR-261003-001","status":"POSTED","type":"PURCHA
+GET goods-receipts/{id}/print                                      HTTP 200  {"data":{"schema_version":1,"document_type":"GOODS_RECEIPT","generated_at":"2026-10-03T12:30:04+00:00","busine
+  GR business_date=2026-10-03 line collection_date=2026-10-02 lot=LOT-261003-001
+  DB lot: LOT-261003-001 collection_date=2026-10-02 received(business_date)=2026-10-03 supplier_reference=NULL
+  STOCK: available=140.0000
+
+== RETAIL 30 kg × 27.000 cash; B2B 50 kg × 25.500 paid 775.000 (transfer 500.000 + QRIS 275.000) ==
+retail sale                                                        HTTP 201  {"data":{"id":"01a101be-34ad-70af-944c-c70fa1a91533","number":"SAL-261003-001","origin":"DIRECT","order_refere
+B2B sale                                                           HTTP 201  {"data":{"id":"01a101be-3512-7392-a097-c48292ec4e04","number":"SAL-261003-002","origin":"DIRECT","order_refere
+  STOCK: available=60.0000   (expected 60)
+  allocation: SAL-261003-001 30.0000 from LOT-261003-001 | SAL-261003-002 50.0000 from LOT-261003-001
+
+== RECEIPTS ==
+GET sales/{retail}/print                                           HTTP 200  {"data":{"schema_version":1,"document_type":"RECEIPT","generated_at":"2026-10-03T12:30:05+00:00","business":{"
+  SAL-261003-001 COMPLETED walk_in=True customer=None | grand_total=Rp810.000 paid=Rp810.000 outstanding=Rp0 | payments=[('Tunai', 'Rp810.000')] | width=80
+  header: ('DG WAY', 'Supply & Distribution')
+GET sales/{b2b}/print?width=58                                     HTTP 200  {"data":{"schema_version":1,"document_type":"RECEIPT","generated_at":"2026-10-03T12:30:05+00:00","business":{"
+  SAL-261003-002 CONFIRMED customer={'code': 'CUS-CATERING-ABC', 'name': 'Catering ABC'} terms={'term_days': 7, 'due_date': '2026-10-10'} | grand_total=Rp1.275.000 paid=Rp775.000 outstanding=Rp500.000 | payments=[('Transfer Bank', 'Rp500.000'), ('QRIS', 'Rp275.000')] | width=58
+
+== LOT LABEL + QR + BARCODE + SCAN ==
+GET lots/{number}/label                                            HTTP 200  {"data":{"schema_version":1,"document_type":"LOT_LABEL","generated_at":"2026-10-03T12:30:05+00:00","business":
+  QR=dgway://lot/01a101be-3362-71ff-9198-8b13223a7be4  barcode={'symbology': 'CODE128', 'value': 'LOT-261003-001'}
+  Produk                   TELUR-STD — Telur Ayam Standar
+  Diterima DG Way          2026-10-03
+  Tanggal Pengumpulan      2026-10-02
+  Pemasok                  Peternakan Bandung
+  Penerimaan               GR-261003-001
+  Jumlah Awal              150 KG
+scan QR                                                            HTTP 200  {"data":{"type":"LOT","id":"01a101be-3362-71ff-9198-8b13223a7be4","matched_by":"QR","display":{"title":"LOT-26
+  → ('LOT', True, 'QR', {'value': '60.0000', 'uom': 'KG'})
+scan barcode (lot number)                                          HTTP 200  {"data":{"type":"LOT","id":"01a101be-3362-71ff-9198-8b13223a7be4","matched_by":"LOT_NUMBER","display":{"title"
+  → ('LOT', True, 'LOT_NUMBER')
+scan SKU                                                           HTTP 200  {"data":{"type":"PRODUCT","id":"01a101be-314d-713f-9b88-717297c210cd","matched_by":"SKU","display":{"title":"T
+  → ('PRODUCT', 'TELUR-STD')
+scan unknown                                                       HTTP 404  {"error":{"code":"SCAN_CODE_UNKNOWN","message":"No DG Way record matches this code."}}
+scan without token                                                 HTTP 401  {"error":{"code":"UNAUTHENTICATED","message":"Silakan login terlebih dahulu."}}
+  QR security check: canonical=True forbidden_fragments_found=[]
+
+== AGENT: GR without collection date ==
+POST goods-receipts (agent, no collection date)                    HTTP 201  {"data":{"id":"01a101be-38f7-72e4-93bf-59a9b690f7e5","number":"GR-261003-002","status":"DRAFT","type":"DIRECT_
+post GR                                                            HTTP 200  {"data":{"id":"01a101be-38f7-72e4-93bf-59a9b690f7e5","number":"GR-261003-002","status":"POSTED","type":"DIRECT
+  DB lot: LOT-261003-002 collection_date=NULL received=2026-10-03
+GET lots/{agent lot}/label                                         HTTP 200  {"data":{"schema_version":1,"document_type":"LOT_LABEL","generated_at":"2026-10-03T12:30:06+00:00","business":
+  collection_date=None  label keys=['product', 'received_date', 'supplier', 'goods_receipt', 'original_quantity']
+  Produk                   TELUR-STD — Telur Ayam Standar
+  Diterima DG Way          2026-10-03
+  Pemasok                  Agen Telur Cimahi
+  Penerimaan               GR-261003-002
+  Jumlah Awal              40 KG
+
+== RECEIVABLE / DASHBOARD / ACTIVITY / TRACE / INTEGRITY ==
+  receivable: [('CUS-CATERING-ABC', '500000.0000')]
+  dashboard: sales=(2, '2085000.0000') payments=1585000.0000 receivable=500000.0000 stock=[{'uom': 'KG', 'available': '100.0000', 'quarantine': '0.0000', 'return_pending': '0.0000'}]
+  activity types: ['GOODS_RECEIPT', 'LOSS', 'PAYMENT', 'PURCHASE_ORDER', 'SALE']  receivable_change={'opening': '0.0000', 'closing': '500000.0000', 'change': '500000.0000'}
+  integrity: True
+  php artisan dgway:trace LOT-261003-001 (head):
+    Trace of lot LOT-261003-001 (RECEIPT, ACTIVE) → TELUR-STD @ DG-WAY-PRIMARY
+    Supplier: SUP-PETERNAKAN-BANDUNG Peternakan Bandung · Receipt: GR-261003-001 · Original: 150.0000 · Remaining: 60.0000 (available 60.0000)
+    Received by DG Way: 2026-10-03 (2026-10-03T12:30:04+00:00) · Collection date: 2026-10-02 · Supplier reference: none
+    +-------------+----------+--------+
+  print/scan audit rows (expected 0 — read-only): 0
+
+logout ok

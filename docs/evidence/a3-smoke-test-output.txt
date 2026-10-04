@@ -1,0 +1,53 @@
+login ok (token redacted)
+
+== setup: supplier Bandung, product TELUR-STD, node DG-WAY-PRIMARY ==
+POST business-partners SUP-BANDUNG (supplier)                HTTP 201  {"data":{"id":"01a10002-2cac-70ae-be0c-c1b5683d025d","code":"SUP-BANDUNG","name":"Supplier Telur Bandung","legal_name":null,"party_type":"ORGANIZATION
+POST categories EGG                                          HTTP 201  {"data":{"id":"01a10002-2d07-7373-b51c-33f830e87cb3","code":"EGG","name":"Telur","parent_id":null,"is_active":true,"version":1}}
+POST products TELUR-STD (KG)                                 HTTP 201  {"data":{"id":"01a10002-2d59-70bb-be9f-afe63f46254d","sku":"TELUR-STD","name":"Telur Ayam Standar","category_id":"01a10002-2d07-7373-b51c-33f830e87cb3
+GET nodes DG-WAY-PRIMARY (from dgway:network:bootstrap)      HTTP 200  {"data":[{"id":"01a10002-1c19-737f-b5c6-7309a6c0b859","code":"DG-WAY-PRIMARY","name":"DG Way Primary Node","location_id":"01a10002-1c14-72af-912e-d4b9
+  node capabilities: ['INVENTORY', 'RECEIVING', 'FULFILLMENT', 'PICKUP', 'DELIVERY']
+
+== Scenario A: direct purchase 150 KG @ 23000, 140 ACCEPT + 10 LOSS ==
+POST goods-receipts (DRAFT)                                  HTTP 201  {"data":{"id":"01a10002-2e36-7081-a60b-b80414fa3192","number":"GR-261003-001","status":"DRAFT","type":"DIRECT_PURCHASE","supplier_id":"01a10002-2cac-7
+  number=GR-261003-001 type=DIRECT_PURCHASE line_cost=3450000.0000 total_cost=3450000.0000
+  stock before posting: available=0.0000 quarantine=0.0000 return_pending=0.0000 ledger_on_hand=0.0000
+POST goods-receipts/{id}/post                                HTTP 200  {"data":{"id":"01a10002-2e36-7081-a60b-b80414fa3192","number":"GR-261003-001","status":"POSTED","type":"DIRECT_PURCHASE","supplier_id":"01a10002-2cac-
+  status=POSTED yield={'line_no': 1, 'product_id': '01a10002-2d59-70bb-be9f-afe63f46254d', 'uom': 'KG', 'received': '150.0000', 'accepted': '140.0000', 'loss': '10.0000', 'returned_to_supplier': '0.0000', 'regraded': '0.0000', 'purchase_cost': '3450000.0000', 'unit_cost': '23000.0000', 'cost_per_accepted_unit': '24642.8571'}
+  stock after posting:  available=140.0000 quarantine=0.0000 return_pending=0.0000 ledger_on_hand=140.0000
+GET inventory/movements (ledger trace)                       HTTP 200  {"data":[{"id":"01a10002-2f90-70f1-9064-522ece8eb90c","sequence":3,"movement_type":"LOSS","product_id":"01a10002-2d59-70bb-be9f-afe63f46254d","sku":"T
+  #1 RECEIPT  AVAILABLE   +140.0000  cost=23000.0000 corr=01a10002
+  #2 RECEIPT  QUARANTINE  +10.0000  cost=23000.0000 corr=01a10002
+  #3 LOSS     QUARANTINE  -10.0000  cost=23000.0000 corr=01a10002
+  loss recorded in ledger: 10.0 KG
+
+== Scenario B: client retries with the SAME Idempotency-Keys ==
+RETRY POST goods-receipts (same key)                         HTTP 201  {"data":{"id":"01a10002-2e36-7081-a60b-b80414fa3192","number":"GR-261003-001","status":"DRAFT","type":"DIRECT_PURCHASE","supplier_id":"01a10002-2cac-7
+  Idempotent-Replayed: true; same id: yes
+RETRY POST goods-receipts/{id}/post (same key)               HTTP 200  {"data":{"id":"01a10002-2e36-7081-a60b-b80414fa3192","number":"GR-261003-001","status":"POSTED","type":"DIRECT_PURCHASE","supplier_id":"01a10002-2cac-
+  Idempotent-Replayed: true
+  stock after retries:  available=140.0000 quarantine=0.0000 return_pending=0.0000 ledger_on_hand=140.0000
+POST .../post again with a NEW key (must be refused)         HTTP 409  {"error":{"code":"INVALID_STATUS_TRANSITION","message":"Goods receipt cannot go from POSTED to POSTED.","details":{"document":"Goods receipt","from":"
+  goods_receipts rows: 1  stock_movements rows: 3
+POST goods-receipts without Idempotency-Key                  HTTP 428  {"error":{"code":"IDEMPOTENCY_KEY_REQUIRED","message":"Header Idempotency-Key wajib untuk transaksi ini."}}
+
+== extra: no negative stock, integrity ==
+POST inventory/losses 141 KG (only 140 available)            HTTP 409  {"error":{"code":"INSUFFICIENT_STOCK","message":"Insufficient AVAILABLE stock: available 140.0000 KG, requested 141.0000.","details":{"product_id":"01
+GET inventory/integrity                                      HTTP 200  {"data":{"consistent":true,"mismatches":[]}}
+
+== Scenario C: direct SQL against the ledger (bypassing the app) ==
+  UPDATE stock_movements SET quantity = 999:
+    ERROR:  Table stock_movements is append-only: UPDATE is not allowed
+    CONTEXT:  PL/pgSQL function dgway_forbid_mutation() line 3 at RAISE
+  DELETE FROM stock_movements:
+    ERROR:  Table stock_movements is append-only: DELETE is not allowed
+    CONTEXT:  PL/pgSQL function dgway_forbid_mutation() line 3 at RAISE
+  UPDATE stock_balances SET quantity = -1:
+    ERROR:  new row for relation "stock_balances" violates check constraint "sb_non_negative_check"
+    DETAIL:  Failing row contains (01a10002-2d59-70bb-be9f-afe63f46254d, 01a10002-1c19-737f-b5c6-7309a6c0b859, AVAILABLE, KG, -1.0000, 2026-10-03 04:25:06+00).
+  UPDATE goods_receipt_lines (posted):
+    ERROR:  Receipt details are immutable once written; receipt status is POSTED (goods_receipt_lines)
+    CONTEXT:  PL/pgSQL function dgway_receipt_detail_guard() line 13 at RAISE
+  ledger after attempts: rows=3 sum(signed)=140.0000
+  stock: available=140.0000 quarantine=0.0000 return_pending=0.0000 ledger_on_hand=140.0000
+
+logout ok

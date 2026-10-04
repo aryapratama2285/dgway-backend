@@ -1,0 +1,9 @@
++------------------+---------+-------------------------------------------------------+
+| step             | status  | detail                                                |
++------------------+---------+-------------------------------------------------------+
+| uoms             | ok      | IKAT, KG, PCS                                         |
+| default_node     | created | DG-WAY-PRIMARY 01a101be-239d-70f6-afe0-95ffc7e9897a   |
+| walk_in_customer | created | WALK-IN 01a101be-23a2-72c7-a8bc-d9a20fd36181          |
+| owner            | created | owner@dgway.test 01a101be-24bd-723c-9d2f-56a3f17a0ae7 |
++------------------+---------+-------------------------------------------------------+
+Operational defaults: currency=IDR timezone=Asia/Jakarta default_node=DG-WAY-PRIMARY walk_in=WALK-IN page_size=25 (served by GET /api/v1/config)

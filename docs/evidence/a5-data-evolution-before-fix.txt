@@ -1,0 +1,19 @@
+## Gaps found while implementing the A5 data-evolution addendum — tests run BEFORE the fixes
+
+### 1. Stable identity: master rows could be hard-deleted / re-keyed by raw SQL (StableIdentityTest)
+1) Tests\Feature\DataEvolution\StableIdentityTest::test_master_rows_cannot_be_hard_deleted_even_when_unreferenced
+The database accepted a change to a stable identity.
+2) Tests\Feature\DataEvolution\StableIdentityTest::test_uuid_and_business_key_are_immutable
+The database accepted a change to a stable identity.
+FAILURES!
+Tests: 3, Assertions: 15, Failures: 2.
+
+### 2. Audit entries did not carry the request's Idempotency-Key (AuditRequestTraceTest)
+### (the A1 PruneIdempotencyKeysCommand docblock claimed they did)
+1) Tests\Feature\DataEvolution\AuditRequestTraceTest::test_audit_entries_carry_the_idempotency_key_of_their_request
+Failed asserting that null is identical to '3526474d-279d-4a66-8127-53a7af2051c5'.
+Tests: 1, Assertions: 11, Failures: 1.
+
+### After the fixes
+
+OK (16 tests, 648 assertions)

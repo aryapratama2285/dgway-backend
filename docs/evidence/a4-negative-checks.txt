@@ -1,0 +1,18 @@
+## A4 negative checks (code temporarily changed, then restored; full suite re-run afterwards)
+
+### 1. Customer credit lock removed in ConfirmSale (DbCustomerCreditGate::lock not called)
+### Expected: credit-limit race test FAILS (both credit sales pass → limit exceeded).
+1) Tests\Feature\Sales\SalesMultiProcessTest::test_credit_limit_race_only_one_credit_sale_passes
+Expected response status code [409] but received 200.
+Failed asserting that 200 is identical to 409.
+[37;41mTests: 1[0m[37;41m, Assertions: 12[0m[37;41m, Failures: 1[0m[37;41m.[0m
+
+### 2. Sale row lock removed in RecordPayment (get instead of getForUpdate)
+### Result: second payment is still refused, but by the optimistic version check (CONCURRENT_MODIFICATION)
+### instead of PAYMENT_EXCEEDS_OUTSTANDING — i.e. two independent protections; the row lock gives the clean business error.
+1) Tests\Feature\Sales\SalesMultiProcessTest::test_payment_race_cannot_overpay
+Failed asserting that two strings are identical.
+--- Expected
+-'PAYMENT_EXCEEDS_OUTSTANDING'
++'CONCURRENT_MODIFICATION'
+[37;41mTests: 1[0m[37;41m, Assertions: 12[0m[37;41m, Failures: 1[0m[37;41m.[0m

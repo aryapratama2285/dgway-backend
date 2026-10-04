@@ -1,0 +1,27 @@
+# A5-C backup/restore drill (dgway_smoke_c → dump → dgway_restore_c)
+== 1. fingerprint source
+Fingerprint written to /tmp/claude-0/a5c/smokec-src.json
+== 2. pg_dump
+exit=0 size=178053
+== 3. restore into new DB
+NOTICE:  database "dgway_restore_c" does not exist, skipping
+exit=0
+== 4. migrate (expect nothing)
+
+   INFO  Nothing to migrate.  
+
+== 5. fingerprint strict compare
+Reconciliation OK: fingerprint identical.
+exit=0
+== 6. verify
+Inventory projection is consistent with the ledger.
+exit=0
+== 7. collection dates survived
+LOT-261003-001 collection_date=2026-10-02 received=2026-10-03
+LOT-261003-002 collection_date=NULL received=2026-10-03
+== 8. guards active
+ERROR:  Table inventory_lots is append-only: UPDATE is not allowed
+== 9. doctor
+| bootstrap: operator               | OK     | at least one active operator (dgway:bootstrap --owner-email=… --password-stdin)                 |
++-----------------------------------+--------+-------------------------------------------------------------------------------------------------+
+Configuration OK.

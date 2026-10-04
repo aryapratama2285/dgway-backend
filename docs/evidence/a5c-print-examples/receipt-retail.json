@@ -1,0 +1,111 @@
+{
+    "data": {
+        "schema_version": 1,
+        "document_type": "RECEIPT",
+        "generated_at": "2026-10-03T12:30:05+00:00",
+        "business": {
+            "business_name": "DG WAY",
+            "business_subtitle": "Supply & Distribution",
+            "address": null,
+            "phone": null,
+            "footer_text": null
+        },
+        "layout": {
+            "medium": "RECEIPT",
+            "paper_width_mm": 80,
+            "supported_widths_mm": [
+                58,
+                80
+            ]
+        },
+        "document": {
+            "sale_id": "01a101be-34ad-70af-944c-c70fa1a91533",
+            "number": "SAL-261003-001",
+            "status": "COMPLETED",
+            "is_final": true,
+            "notice": null,
+            "business_date": "2026-10-03",
+            "transaction_at": "2026-10-03T12:30:04+00:00",
+            "reversed_at": null,
+            "currency": "IDR",
+            "is_walk_in": true,
+            "customer": null,
+            "operator": {
+                "id": "01a101be-24bd-723c-9d2f-56a3f17a0ae7",
+                "name": "Owner"
+            },
+            "node": {
+                "code": "DG-WAY-PRIMARY",
+                "name": "DG Way Primary Node"
+            },
+            "lines": [
+                {
+                    "line_no": 1,
+                    "sku": "TELUR-STD",
+                    "name": "Telur Ayam Standar",
+                    "quantity": {
+                        "value": "30.0000",
+                        "formatted": "30",
+                        "uom": "KG"
+                    },
+                    "unit_price": {
+                        "amount": "27000.0000",
+                        "formatted": "Rp27.000"
+                    },
+                    "discount": null,
+                    "line_total": {
+                        "amount": "810000.0000",
+                        "formatted": "Rp810.000"
+                    },
+                    "returned_quantity": null
+                }
+            ],
+            "totals": {
+                "subtotal": {
+                    "amount": "810000.0000",
+                    "formatted": "Rp810.000"
+                },
+                "discount_total": {
+                    "amount": "0.0000",
+                    "formatted": "Rp0"
+                },
+                "grand_total": {
+                    "amount": "810000.0000",
+                    "formatted": "Rp810.000"
+                },
+                "total_paid": {
+                    "amount": "810000.0000",
+                    "formatted": "Rp810.000"
+                },
+                "credited": {
+                    "amount": "0.0000",
+                    "formatted": "Rp0"
+                },
+                "outstanding": {
+                    "amount": "0.0000",
+                    "formatted": "Rp0"
+                }
+            },
+            "payments": [
+                {
+                    "number": "PAY-261003-001",
+                    "method": "CASH",
+                    "method_label": "Tunai",
+                    "amount": {
+                        "amount": "810000.0000",
+                        "formatted": "Rp810.000"
+                    },
+                    "paid_at": "2026-10-03T12:30:04+00:00",
+                    "reference": null,
+                    "reversed": false
+                }
+            ],
+            "payment_terms": null,
+            "returns": [],
+            "reference": {
+                "document_number": "SAL-261003-001",
+                "qr_payload": "dgway://sale/01a101be-34ad-70af-944c-c70fa1a91533"
+            }
+        }
+    }
+}

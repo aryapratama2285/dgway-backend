@@ -1,0 +1,562 @@
+## Full suite (PostgreSQL 16, real multi-process workers)
+PHPUnit 12.5.37 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.3.6
+Configuration: /home/claude/dgway-backend/phpunit.xml
+
+Time: 01:36.972, Memory: 68.50 MB
+
+A3Hardening (Tests\Feature\Inventory\A3Hardening)
+ ✔ Stale expected version on post is rejected
+ ✔ Stale expected version on reverse is rejected
+ ✔ Stale expected version on cancel is rejected
+ ✔ Inactive supplier role blocks new receipts and posting
+ ✔ Inactive node blocks new transactions
+ ✔ Inactive product blocks new transactions
+ ✔ Recovery from quarantine into available
+ ✔ Balances are paged
+
+Actor (Tests\Unit\Domain\Shared\Actor)
+ ✔ Operator actor
+ ✔ System actor
+ ✔ Operator id must be uuid
+
+Audit Log (Tests\Feature\Foundation\AuditLog)
+ ✔ Records actor timestamp business date and change
+ ✔ Audit rows cannot be updated
+ ✔ Audit rows cannot be deleted
+
+Audit Request Trace (Tests\Feature\DataEvolution\AuditRequestTrace)
+ ✔ Audit entries carry the idempotency key of their request
+
+Authentication Api (Tests\Feature\Foundation\AuthenticationApi)
+ ✔ Password is stored hashed never plaintext
+ ✔ Login returns bearer token and operator without secrets
+ ✔ Wrong password is rejected and audited
+ ✔ Unknown email gets same error as wrong password
+ ✔ Inactive operator cannot login
+ ✔ Validation errors use the error envelope
+ ✔ Protected endpoint requires token
+ ✔ Me and logout revokes token
+ ✔ Deactivated operator token stops working immediately
+ ✔ Expired token is rejected
+ ✔ Login is rate limited
+ ✔ Health endpoint reports database and business date
+ ✔ Unknown api route returns json 404
+
+Business Date (Tests\Unit\Domain\Shared\BusinessDate)
+ ✔ Early morning wib belongs to the local day not the utc day
+ ✔ Late evening wib stays on same local day
+ ✔ Compact form for document numbers
+ ✔ Invalid dates rejected
+ ✔ Comparison and arithmetic
+
+Business Partner (Tests\Unit\Domain\Partner\BusinessPartner)
+ ✔ Partner requires at least one role
+ ✔ Simple cash customer needs only a type
+ ✔ One partner can be supplier and customer
+ ✔ Role cannot be assigned twice
+ ✔ Change credit terms
+ ✔ Terms validation
+ ✔ Walk in customer is cash only
+ ✔ Cannot reclassify tempo customer as walk in
+ ✔ Supplier has no credit limit
+ ✔ Role operations on missing role fail
+ ✔ Deactivating role or partner affects usability not history
+ ✔ Contact and address changes report changes
+ ✔ Snapshot contains roles
+
+Business Partner Api (Tests\Feature\MasterData\BusinessPartnerApi)
+ ✔ Simple cash customer with minimal data
+ ✔ Full partner who is both supplier and customer
+ ✔ Partner needs a role
+ ✔ Walk in customer cannot get tempo
+ ✔ Supplier cannot have credit limit
+ ✔ Invalid phone and postal code
+ ✔ Duplicate partner code is 409 and retry is replayed
+ ✔ Change credit terms and reclassify
+ ✔ Assign supplier role to existing customer
+ ✔ Role deactivation is independent of partner
+ ✔ Update contact and address and deactivate partner
+ ✔ Search by phone regardless of format
+ ✔ Filter by customer type
+
+Catalog (Tests\Unit\Domain\Catalog\Catalog)
+ ✔ Category hierarchy
+ ✔ Category cannot be its own parent
+ ✔ Category cannot move under its descendant
+ ✔ Category depth is bounded
+ ✔ Moving a subtree checks the deepest descendant
+ ✔ Inactive category cannot be parent
+ ✔ Category in use cannot be deactivated
+ ✔ Category rename and move to top level
+ ✔ Product is created active in its base uom
+ ✔ Product is not egg specific
+ ✔ Product cannot be created in inactive category
+ ✔ Rename recategorize describe
+ ✔ Base uom change allowed before any transaction
+ ✔ Base uom locked after transactions
+ ✔ Activation is idempotent and reports change
+ ✔ Snapshot for audit
+
+Catalog Api (Tests\Feature\MasterData\CatalogApi)
+ ✔ Category hierarchy food egg and packaging
+ ✔ Create product and read it back
+ ✔ Non egg products work the same way
+ ✔ Retry with same key does not create a duplicate product
+ ✔ Duplicate sku with new key is a clean 409
+ ✔ Invalid inputs are rejected with domain codes
+ ✔ Update uses intent methods and audits only changed fields
+ ✔ No op update does not bump version or audit
+ ✔ Sku is immutable
+ ✔ Stale expected version is rejected
+ ✔ Base uom can change before any transaction
+ ✔ Deactivate and activate keep record retrievable
+ ✔ Category with active products cannot be deactivated
+ ✔ Category cycle is rejected via api
+ ✔ Product list search filter and pagination
+ ✔ Search input is not interpreted as sql or wildcards
+ ✔ Uom reference list
+ ✔ Mutation without idempotency key is refused
+ ✔ Unauthenticated access is refused
+
+Category Subtree Depth (Tests\Feature\MasterData\CategorySubtreeDepth)
+ ✔ Moving a category with descendants cannot push them past max depth
+
+Container Bindings (Tests\Feature\Foundation\ContainerBindings)
+ ✔ Every domain and application interface is bound to infrastructure
+
+Create Operator Command (Tests\Feature\Foundation\CreateOperatorCommand)
+ ✔ Creates owner with hashed password and audit
+ ✔ Rejects short password
+ ✔ Rejects duplicate email
+
+Database Schema (Tests\Feature\Foundation\DatabaseSchema)
+ ✔ Connection is postgresql in utc
+ ✔ Foundation tables exist
+ ✔ Primary keys are uuid
+ ✔ Timestamps are timezone aware
+ ✔ Uom reference data is present
+ ✔ Uom precision check constraint
+ ✔ User role check constraint rejects unknown roles
+ ✔ User email must be lowercase
+ ✔ Append only guard function exists
+
+Data Contract (Tests\Feature\DataEvolution\DataContract)
+ ✔ Every table is declared and every declaration exists
+ ✔ Declarations are well formed
+ ✔ Preserved tables have a client generated uuid primary key
+ ✔ Fingerprint columns exist
+ ✔ Declared immutability is enforced by the database
+
+Decimal (Tests\Unit\Domain\Shared\Decimal)
+ ✔ Classic float error does not happen
+ ✔ Division rounds half up at requested scale
+ ✔ Division by zero is a domain error
+ ✔ Rejects non decimal strings with data set "empty"
+ ✔ Rejects non decimal strings with data set "letters"
+ ✔ Rejects non decimal strings with data set "comma decimal"
+ ✔ Rejects non decimal strings with data set "exponent"
+ ✔ Rejects non decimal strings with data set "thousand separator"
+ ✔ Rejects non decimal strings with data set "leading dot"
+ ✔ Float input is rejected by the type system
+ ✔ To fixed pads and rounds
+
+Direct Purchase (Tests\Feature\Inventory\DirectPurchase)
+ ✔ Direct purchase 150kg with 10kg loss
+
+Document Number (Tests\Unit\Domain\Shared\DocumentNumber)
+ ✔ Batch code format from the brief
+ ✔ Prefix is not locked to eggs
+ ✔ Sequence grows past 999 instead of overflowing
+ ✔ Round trip parse
+ ✔ Invalid prefix rejected
+ ✔ Sequence must start at one
+ ✔ Unparseable value rejected
+
+Document Number Generator (Tests\Feature\Foundation\DocumentNumberGenerator)
+ ✔ Sequential numbers per prefix and day
+ ✔ Rolled back transaction releases the number
+ ✔ Must be called inside a transaction
+
+Error Response (Tests\Feature\Foundation\ErrorResponse)
+ ✔ Unexpected exception returns generic 500 with reference
+ ✔ Database error does not leak sql or parameters
+ ✔ Debug mode adds details only when explicitly enabled
+
+Goods Receipt (Tests\Unit\Domain\Procurement\GoodsReceipt)
+ ✔ Owner scenario 150 received 140 accept 10 loss
+ ✔ Mixed dispositions conserve quantity
+ ✔ Missing disposition is rejected
+ ✔ Over disposition is rejected
+ ✔ No disposition at all is rejected
+ ✔ Disposition rules
+ ✔ Mass balance property over many random combinations
+ ✔ Post once then reverse once
+ ✔ Draft cannot be reversed and posted cannot be cancelled
+ ✔ Receipt against po validates match and open quantity
+ ✔ Direct receipt cannot reference po lines
+
+Idempotency (Tests\Feature\Foundation\Idempotency)
+ ✔ Retry with same key returns stored result without re executing
+ ✔ Same key different payload is rejected
+ ✔ Keys are scoped per operator
+ ✔ Failed attempt leaves no key and retry executes
+ ✔ Concurrent request with same key waits instead of duplicating
+ ✔ Http retry returns same response and flags replay
+
+Idempotency Retention (Tests\Feature\Foundation\IdempotencyRetention)
+ ✔ Prune deletes only completed keys older than retention
+ ✔ Prune is scheduled daily
+
+Idempotent Command Executor (Tests\Unit\Application\IdempotentCommandExecutor)
+ ✔ Same key and payload executes once and replays result
+ ✔ Payload key order does not matter
+ ✔ Reusing key with different payload is rejected
+ ✔ Failed command does not consume the key
+ ✔ Key format is validated
+
+Inventory Domain (Tests\Unit\Domain\Inventory\InventoryDomain)
+ ✔ Every movement type declares its directions
+ ✔ Movement rejects wrong direction zero or negative quantity
+ ✔ Reversal mirrors the original and cannot be reversed again
+ ✔ Balance rejects going negative
+ ✔ Balance rejects movements of another position
+ ✔ Balance equals ledger sum and never negative property
+ ✔ Regrade operation produces conserving pair with one correlation
+ ✔ Recovery moves from non sellable to available
+ ✔ Operations require a reason
+
+Inventory Multi Process (Tests\Feature\Inventory\InventoryMultiProcess)
+ ✔ Double posting of the same receipt creates movements once
+ ✔ Same idempotency key from two processes waits then replays
+ ✔ Concurrent decrement waits and never goes negative
+ ✔ Many processes racing for the last units
+ ✔ Concurrent reversal happens once
+ ✔ Concurrent postings to the same position do not lose updates
+ ✔ Reversal racing a loss cannot overdraw
+ ✔ Rebuild waits for an in flight posting
+ ✔ Posting waits for an in flight rebuild
+
+Layer Dependency (Tests\Architecture\LayerDependency)
+ ✔ Layer does not depend on forbidden namespaces with data set "Domain is framework-free"
+ ✔ Layer does not depend on forbidden namespaces with data set "Application does not know adapters or Laravel"
+ ✔ Layer does not depend on forbidden namespaces with data set "Infrastructure does not depend on HTTP"
+ ✔ Layer does not depend on forbidden namespaces with data set "Catalog domain is independent"
+ ✔ Layer does not depend on forbidden namespaces with data set "Partner domain is independent"
+ ✔ Layer does not depend on forbidden namespaces with data set "Network domain is independent"
+ ✔ Layer does not depend on forbidden namespaces with data set "Procurement domain is independent"
+ ✔ Layer does not depend on forbidden namespaces with data set "Inventory domain is independent"
+ ✔ Layer does not depend on forbidden namespaces with data set "Sales domain is independent"
+ ✔ Layer does not depend on forbidden namespaces with data set "Procurement domain does not know Sales"
+ ✔ Layer does not depend on forbidden namespaces with data set "Inventory domain does not know Sales"
+ ✔ Layer does not depend on forbidden namespaces with data set "Inventory application does not know sales"
+ ✔ Layer does not depend on forbidden namespaces with data set "Procurement application does not know sales"
+ ✔ Layer does not depend on forbidden namespaces with data set "Inventory application does not know procurement"
+ ✔ Layer does not depend on forbidden namespaces with data set "Master data does not know transactions"
+ ✔ Layer does not depend on forbidden namespaces with data set "Shared kernel depends on no context"
+ ✔ Layer does not depend on forbidden namespaces with data set "Shared application services know no transaction context"
+ ✔ Controllers do not touch the database directly
+
+Ledger Database Constraints (Tests\Feature\Inventory\LedgerDatabaseConstraints)
+ ✔ Ledger rows cannot be updated
+ ✔ Ledger rows cannot be deleted
+ ✔ Type direction and quantity checks
+ ✔ Reversal must mirror its original and happen once
+ ✔ Balance projection can never be negative
+ ✔ Posted receipt is immutable and undeletable
+ ✔ Receipt cannot be posted with unbalanced dispositions
+ ✔ Purchase order line rules
+
+Master Data Constraints (Tests\Feature\MasterData\MasterDataConstraints)
+ ✔ Sku unique
+ ✔ Sku format and uppercase
+ ✔ Product base uom must exist
+ ✔ Category cannot be own parent
+ ✔ Referenced category cannot be deleted
+ ✔ Version must be positive
+ ✔ Partner role rules
+ ✔ One row per partner role
+ ✔ Partner contact and address formats
+ ✔ Partner with roles cannot be deleted
+ ✔ Node capabilities constraints
+ ✔ Node code unique and location fk
+ ✔ Location with nodes cannot be deleted
+
+Master Data Value Objects (Tests\Unit\Domain\Shared\MasterDataValueObjects)
+ ✔ Business code is normalised to upper case
+ ✔ Invalid codes rejected with data set "empty"
+ ✔ Invalid codes rejected with data set "space inside"
+ ✔ Invalid codes rejected with data set "starts with dash"
+ ✔ Invalid codes rejected with data set "slash"
+ ✔ Invalid codes rejected with data set "too long"
+ ✔ Name collapses whitespace and is required
+ ✔ Name length limit
+ ✔ Phone numbers are normalised to e164 with data set "local mobile with dashes"
+ ✔ Phone numbers are normalised to e164 with data set "62 prefix with spaces"
+ ✔ Phone numbers are normalised to e164 with data set "e164"
+ ✔ Phone numbers are normalised to e164 with data set "landline with area code"
+ ✔ Same phone typed differently is equal
+ ✔ Invalid phone rejected
+ ✔ Email lowercased and validated
+ ✔ Address only requires street
+ ✔ Full indonesian address round trip
+ ✔ Address street required
+ ✔ Postal code must be five digits
+ ✔ Coordinates range checked
+ ✔ Id accepts uuid and rejects other
+ ✔ Notes empty becomes null
+
+Migration Tooling (Tests\Feature\DataEvolution\MigrationTooling)
+ ✔ Fingerprint is deterministic and reconciles with itself
+ ✔ Invariants carry the economic meaning
+ ✔ A business change is reported by compare
+ ✔ A migration that alters history is detected
+ ✔ Trace follows a sale to money stock actor and audit
+ ✔ Schema catalog document matches the live schema
+
+Money (Tests\Unit\Domain\Shared\Money)
+ ✔ Defaults to idr with four decimal storage
+ ✔ Line total price times quantity is exact
+ ✔ Fractional quantity line total
+ ✔ Effective hpp per sellable kg from yield
+ ✔ Receivable after partial payment
+ ✔ Rounding to whole rupiah is explicit and half up
+ ✔ Currency mismatch is rejected
+ ✔ More than four decimals is rejected not silently rounded
+ ✔ Assert non negative
+ ✔ Comparisons and immutability
+
+Multi Process Concurrency (Tests\Feature\Foundation\MultiProcessConcurrency)
+ ✔ Second request with same key waits then replays first result
+ ✔ Concurrent creation of same sku yields one product and one clean duplicate error
+ ✔ Real postgresql deadlock is retried and the unit of work completes
+
+Network (Tests\Unit\Domain\Network\Network)
+ ✔ Location and node are distinct concepts
+ ✔ Node without fixed location is allowed
+ ✔ Capabilities are unique and canonically ordered
+ ✔ Node needs at least one capability
+ ✔ Grant and revoke
+ ✔ Node cannot be placed at inactive location
+ ✔ Location with active nodes cannot be deactivated
+ ✔ Inactive node cannot do anything
+ ✔ Reactivating node requires active location
+ ✔ Relocate node
+
+Network Api (Tests\Feature\MasterData\NetworkApi)
+ ✔ Location and node are separate resources
+ ✔ Node without location and capability filter
+ ✔ Capability validation
+ ✔ Update node capabilities and relocate
+ ✔ Location with active node cannot be deactivated
+ ✔ Duplicate node code and retry
+ ✔ Bootstrap command creates primary node once
+
+No Destructive Migration (Tests\Feature\DataEvolution\NoDestructiveMigration)
+ ✔ Destructive commands are prohibited in production only
+
+Owner Queries (Tests\Feature\Sales\OwnerQueries)
+ ✔ Dashboard sales payments receivables and search
+ ✔ Receivable queries use the open sales index
+
+Procurement Idempotency And Master Data (Tests\Feature\Inventory\ProcurementIdempotencyAndMasterData)
+ ✔ Retry with same key never doubles stock
+ ✔ Idempotent inventory operation
+ ✔ Mutations require an idempotency key
+ ✔ Dates are kept distinct
+ ✔ New transactions validate master data
+
+Projection And Registry (Tests\Feature\Inventory\ProjectionAndRegistry)
+ ✔ Verify detects drift and rebuild restores from ledger
+ ✔ Balance always equals ledger sum under random operations
+ ✔ Every product foreign key outside master data is registered
+ ✔ Product uom is locked once stock moved
+
+Purchase Order (Tests\Unit\Domain\Procurement\PurchaseOrder)
+ ✔ Line total uses money precision
+ ✔ Partial then full receipt moves status
+ ✔ Over receipt is rejected
+ ✔ Draft cannot receive
+ ✔ Cancelled cannot be received or confirmed
+ ✔ Cannot cancel after receipts
+ ✔ Receipt reversal moves status back
+ ✔ State machine transition table with data set "DRAFT → DRAFT"
+ ✔ State machine transition table with data set "DRAFT → CONFIRMED"
+ ✔ State machine transition table with data set "DRAFT → PARTIALLY_RECEIVED"
+ ✔ State machine transition table with data set "DRAFT → RECEIVED"
+ ✔ State machine transition table with data set "DRAFT → CANCELLED"
+ ✔ State machine transition table with data set "CONFIRMED → DRAFT"
+ ✔ State machine transition table with data set "CONFIRMED → CONFIRMED"
+ ✔ State machine transition table with data set "CONFIRMED → PARTIALLY_RECEIVED"
+ ✔ State machine transition table with data set "CONFIRMED → RECEIVED"
+ ✔ State machine transition table with data set "CONFIRMED → CANCELLED"
+ ✔ State machine transition table with data set "PARTIALLY_RECEIVED → DRAFT"
+ ✔ State machine transition table with data set "PARTIALLY_RECEIVED → CONFIRMED"
+ ✔ State machine transition table with data set "PARTIALLY_RECEIVED → PARTIALLY_RECEIVED"
+ ✔ State machine transition table with data set "PARTIALLY_RECEIVED → RECEIVED"
+ ✔ State machine transition table with data set "PARTIALLY_RECEIVED → CANCELLED"
+ ✔ State machine transition table with data set "RECEIVED → DRAFT"
+ ✔ State machine transition table with data set "RECEIVED → CONFIRMED"
+ ✔ State machine transition table with data set "RECEIVED → PARTIALLY_RECEIVED"
+ ✔ State machine transition table with data set "RECEIVED → RECEIVED"
+ ✔ State machine transition table with data set "RECEIVED → CANCELLED"
+ ✔ State machine transition table with data set "CANCELLED → DRAFT"
+ ✔ State machine transition table with data set "CANCELLED → CONFIRMED"
+ ✔ State machine transition table with data set "CANCELLED → PARTIALLY_RECEIVED"
+ ✔ State machine transition table with data set "CANCELLED → RECEIVED"
+ ✔ State machine transition table with data set "CANCELLED → CANCELLED"
+ ✔ Draft validation
+
+Purchase Order Flow (Tests\Feature\Inventory\PurchaseOrderFlow)
+ ✔ Po is created as draft with numbered document and exact totals
+ ✔ Partial receipts 500 equals 200 150 150
+ ✔ Unit cost defaults from po line
+ ✔ Over receipt is rejected by default
+ ✔ Receiving requires a confirmed po
+ ✔ Cancel rules and invalid transitions
+ ✔ Stale expected version returns 409
+ ✔ Audit events for purchase orders
+
+Quantity (Tests\Unit\Domain\Shared\Quantity)
+ ✔ Kg quantity storage and json
+ ✔ Received minus accepted equals rejected
+ ✔ Partial fulfillment remaining quantity
+ ✔ Kg allows gram precision
+ ✔ Kg rejects sub gram precision
+ ✔ Pcs rejects fractions
+ ✔ Pcs accepts whole number written with trailing zeros
+ ✔ Units are never mixed implicitly
+ ✔ Assert positive rejects zero
+ ✔ Negative quantity allowed as value but guarded
+ ✔ Comparisons
+
+Receiving Disposition (Tests\Feature\Inventory\ReceivingDisposition)
+ ✔ Return to supplier is held not lost then shipped back
+ ✔ Pending return can be recovered into available
+ ✔ Regrade at receipt moves quantity to target grade with one correlation
+ ✔ Mass balance and disposition validation
+ ✔ Decimal quantities and cost are exact
+ ✔ Draft receipt can be cancelled and never posted
+ ✔ Receipt listing and movement trace
+
+Returns Idempotency And Guards (Tests\Feature\Sales\ReturnsIdempotencyAndGuards)
+ ✔ Customer return dispositions and limits
+ ✔ Retries never duplicate sale payment stock or return
+ ✔ Master data guard for new sales
+ ✔ Audit events
+
+Reversal And Operations (Tests\Feature\Inventory\ReversalAndOperations)
+ ✔ Reversal compensates every movement without touching history
+ ✔ Receipt cannot be reversed twice
+ ✔ Reversal is blocked when stock was already used
+ ✔ Reversing a po receipt reopens the po
+ ✔ Loss cannot make stock negative
+ ✔ Adjustments and regrade operation
+ ✔ There is no endpoint that sets stock or deletes documents
+
+Sale (Tests\Unit\Domain\Sales\Sale)
+ ✔ Line totals are exact
+ ✔ Discount cannot exceed subtotal
+ ✔ State machine table with data set "DRAFT → DRAFT"
+ ✔ State machine table with data set "DRAFT → CONFIRMED"
+ ✔ State machine table with data set "DRAFT → COMPLETED"
+ ✔ State machine table with data set "DRAFT → CANCELLED"
+ ✔ State machine table with data set "DRAFT → REVERSED"
+ ✔ State machine table with data set "CONFIRMED → DRAFT"
+ ✔ State machine table with data set "CONFIRMED → CONFIRMED"
+ ✔ State machine table with data set "CONFIRMED → COMPLETED"
+ ✔ State machine table with data set "CONFIRMED → CANCELLED"
+ ✔ State machine table with data set "CONFIRMED → REVERSED"
+ ✔ State machine table with data set "COMPLETED → DRAFT"
+ ✔ State machine table with data set "COMPLETED → CONFIRMED"
+ ✔ State machine table with data set "COMPLETED → COMPLETED"
+ ✔ State machine table with data set "COMPLETED → CANCELLED"
+ ✔ State machine table with data set "COMPLETED → REVERSED"
+ ✔ State machine table with data set "CANCELLED → DRAFT"
+ ✔ State machine table with data set "CANCELLED → CONFIRMED"
+ ✔ State machine table with data set "CANCELLED → COMPLETED"
+ ✔ State machine table with data set "CANCELLED → CANCELLED"
+ ✔ State machine table with data set "CANCELLED → REVERSED"
+ ✔ State machine table with data set "REVERSED → DRAFT"
+ ✔ State machine table with data set "REVERSED → CONFIRMED"
+ ✔ State machine table with data set "REVERSED → COMPLETED"
+ ✔ State machine table with data set "REVERSED → CANCELLED"
+ ✔ State machine table with data set "REVERSED → REVERSED"
+ ✔ Walk in must pay in full
+ ✔ Cash customer cannot owe but credit customer can
+ ✔ Credit limit boundary
+ ✔ Partial payments and overpayment
+ ✔ Outstanding is deterministic under random payment sequences
+ ✔ Payment reversal reopens and cannot repeat
+ ✔ Walk in payment can only be reversed with the sale
+ ✔ Returns value credit refund and limits
+ ✔ Returned values always add up to the line total
+ ✔ Cancel only while draft
+ ✔ Fully discounted sale completes on confirm
+ ✔ Rejected commands leave the sale untouched
+ ✔ Invalid inputs
+
+Sale Flow (Tests\Feature\Sales\SaleFlow)
+ ✔ Walk in cash sale takes stock and completes
+ ✔ B2b credit sale with partial payments
+
+Sale Lifecycle (Tests\Feature\Sales\SaleLifecycle)
+ ✔ Direct sale draft then confirm without any order
+ ✔ Insufficient stock rejects the whole sale without partial effects
+ ✔ Cash customer and walk in cannot owe
+ ✔ Credit limit is enforced
+ ✔ Due dates and overdue receivables
+ ✔ Payment reversal keeps history and reopens receivable
+ ✔ Sale reversal returns stock traceably
+ ✔ Sale reversal blocked when stock already gone or returned
+ ✔ Draft cancel
+ ✔ Line discount
+ ✔ Price is a snapshot on the line
+ ✔ Stale expected version
+
+Sales Database Constraints (Tests\Feature\Sales\SalesDatabaseConstraints)
+ ✔ Payments are append only
+ ✔ Payment reversals are unique and append only
+ ✔ Cached paid amount cannot drift from payment history
+ ✔ Outstanding can never be negative
+ ✔ Payment amount and method checks
+ ✔ Confirmed sale is immutable and undeletable
+ ✔ Line and status checks
+ ✔ Walk in sale cannot owe even through sql
+ ✔ Customer returns are append only and bounded
+
+Sales Multi Process (Tests\Feature\Sales\SalesMultiProcess)
+ ✔ Stock race only one sale succeeds
+ ✔ Many simultaneous sales never oversell
+ ✔ Payment race cannot overpay
+ ✔ Credit limit race only one credit sale passes
+ ✔ Double confirmation posts inventory once
+ ✔ Double reversal only one succeeds
+
+Stable Identity (Tests\Feature\DataEvolution\StableIdentity)
+ ✔ Master rows cannot be hard deleted even when unreferenced
+ ✔ Uuid and business key are immutable
+ ✔ Ordinary master data edits still work
+
+Transaction Boundary (Tests\Feature\Foundation\TransactionBoundary)
+ ✔ Successful unit of work commits all writes
+ ✔ Failure mid unit of work rolls back every write
+ ✔ Nested run joins outer transaction
+ ✔ Failure in nested work rolls back the whole outer unit
+ ✔ Database constraint violation rolls back prior writes
+
+Transaction Retry (Tests\Feature\Foundation\TransactionRetry)
+ ✔ Serialization failure 40001 is retried
+ ✔ Deadlock 40P01 is retried
+ ✔ Non concurrency errors are not retried
+ ✔ Gives up after three attempts and rolls back
+ ✔ Business exceptions are not retried
+
+Uom (Tests\Unit\Domain\Shared\Uom)
+ ✔ Baseline units
+ ✔ New units can be defined without code changes
+ ✔ Invalid code rejected
+ ✔ Precision bounds
+
+OK (445 tests, 18771 assertions)

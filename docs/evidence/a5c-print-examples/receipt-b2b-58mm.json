@@ -1,0 +1,129 @@
+{
+    "data": {
+        "schema_version": 1,
+        "document_type": "RECEIPT",
+        "generated_at": "2026-10-03T12:30:05+00:00",
+        "business": {
+            "business_name": "DG WAY",
+            "business_subtitle": "Supply & Distribution",
+            "address": null,
+            "phone": null,
+            "footer_text": null
+        },
+        "layout": {
+            "medium": "RECEIPT",
+            "paper_width_mm": 58,
+            "supported_widths_mm": [
+                58,
+                80
+            ]
+        },
+        "document": {
+            "sale_id": "01a101be-3512-7392-a097-c48292ec4e04",
+            "number": "SAL-261003-002",
+            "status": "CONFIRMED",
+            "is_final": true,
+            "notice": null,
+            "business_date": "2026-10-03",
+            "transaction_at": "2026-10-03T12:30:05+00:00",
+            "reversed_at": null,
+            "currency": "IDR",
+            "is_walk_in": false,
+            "customer": {
+                "code": "CUS-CATERING-ABC",
+                "name": "Catering ABC"
+            },
+            "operator": {
+                "id": "01a101be-24bd-723c-9d2f-56a3f17a0ae7",
+                "name": "Owner"
+            },
+            "node": {
+                "code": "DG-WAY-PRIMARY",
+                "name": "DG Way Primary Node"
+            },
+            "lines": [
+                {
+                    "line_no": 1,
+                    "sku": "TELUR-STD",
+                    "name": "Telur Ayam Standar",
+                    "quantity": {
+                        "value": "50.0000",
+                        "formatted": "50",
+                        "uom": "KG"
+                    },
+                    "unit_price": {
+                        "amount": "25500.0000",
+                        "formatted": "Rp25.500"
+                    },
+                    "discount": null,
+                    "line_total": {
+                        "amount": "1275000.0000",
+                        "formatted": "Rp1.275.000"
+                    },
+                    "returned_quantity": null
+                }
+            ],
+            "totals": {
+                "subtotal": {
+                    "amount": "1275000.0000",
+                    "formatted": "Rp1.275.000"
+                },
+                "discount_total": {
+                    "amount": "0.0000",
+                    "formatted": "Rp0"
+                },
+                "grand_total": {
+                    "amount": "1275000.0000",
+                    "formatted": "Rp1.275.000"
+                },
+                "total_paid": {
+                    "amount": "775000.0000",
+                    "formatted": "Rp775.000"
+                },
+                "credited": {
+                    "amount": "0.0000",
+                    "formatted": "Rp0"
+                },
+                "outstanding": {
+                    "amount": "500000.0000",
+                    "formatted": "Rp500.000"
+                }
+            },
+            "payments": [
+                {
+                    "number": "PAY-261003-002",
+                    "method": "BANK_TRANSFER",
+                    "method_label": "Transfer Bank",
+                    "amount": {
+                        "amount": "500000.0000",
+                        "formatted": "Rp500.000"
+                    },
+                    "paid_at": "2026-10-03T12:30:05+00:00",
+                    "reference": "TRF-BCA-A5C",
+                    "reversed": false
+                },
+                {
+                    "number": "PAY-261003-003",
+                    "method": "QRIS",
+                    "method_label": "QRIS",
+                    "amount": {
+                        "amount": "275000.0000",
+                        "formatted": "Rp275.000"
+                    },
+                    "paid_at": "2026-10-03T12:30:05+00:00",
+                    "reference": null,
+                    "reversed": false
+                }
+            ],
+            "payment_terms": {
+                "term_days": 7,
+                "due_date": "2026-10-10"
+            },
+            "returns": [],
+            "reference": {
+                "document_number": "SAL-261003-002",
+                "qr_payload": "dgway://sale/01a101be-3512-7392-a097-c48292ec4e04"
+            }
+        }
+    }
+}

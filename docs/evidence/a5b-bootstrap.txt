@@ -1,0 +1,18 @@
++------------------+---------+-------------------------------------------------------+
+| step             | status  | detail                                                |
++------------------+---------+-------------------------------------------------------+
+| uoms             | ok      | IKAT, KG, PCS                                         |
+| default_node     | created | DG-WAY-PRIMARY 01a100de-b183-72b5-8098-cd5e4ec5d213   |
+| walk_in_customer | created | WALK-IN 01a100de-b188-71aa-8521-de7d20a766ed          |
+| owner            | created | owner@dgway.test 01a100de-b274-7342-ae89-b601acd7b104 |
++------------------+---------+-------------------------------------------------------+
+Operational defaults: currency=IDR timezone=Asia/Jakarta default_node=DG-WAY-PRIMARY walk_in=WALK-IN page_size=25 (served by GET /api/v1/config)
++------------------+---------+-----------------------------------------------------+
+| step             | status  | detail                                              |
++------------------+---------+-----------------------------------------------------+
+| uoms             | ok      | IKAT, KG, PCS                                       |
+| default_node     | exists  | DG-WAY-PRIMARY 01a100de-b183-72b5-8098-cd5e4ec5d213 |
+| walk_in_customer | exists  | WALK-IN 01a100de-b188-71aa-8521-de7d20a766ed        |
+| owner            | skipped | Operators already exist; no owner requested.        |
++------------------+---------+-----------------------------------------------------+
+Operational defaults: currency=IDR timezone=Asia/Jakarta default_node=DG-WAY-PRIMARY walk_in=WALK-IN page_size=25 (served by GET /api/v1/config)

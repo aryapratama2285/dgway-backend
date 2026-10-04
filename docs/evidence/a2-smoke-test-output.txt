@@ -1,0 +1,50 @@
+login ok (token redacted)
+POST categories FOOD                                       HTTP 201  {"data":{"id":"01a0ffdc-d18c-71d9-a6c3-b0ff1f677b25","code":"FOOD","name":"Food","parent_id":null,"is_active":true,"version":1}}
+POST categories EGG under FOOD                             HTTP 201  {"data":{"id":"01a0ffdc-d1e0-71a8-a02e-3976fc373a5e","code":"EGG","name":"Telur","parent_id":"01a0ffdc-d18c-71d9-a6c3-b0ff1f677b25","is_active":true,"version":1}}
+POST products TLR-A                                        HTTP 201  {"data":{"id":"01a0ffdc-d234-7136-ac6e-8dfa594b73fa","sku":"TLR-A","name":"Telur Ayam Grade A","category_id":"01a0ffdc-d1e0-71a8-a02e-3976fc373a5e","base_uom":{"code":"KG
+POST products TLR-A (RETRY same key)                       HTTP 201  {"data":{"id":"01a0ffdc-d234-7136-ac6e-8dfa594b73fa","sku":"TLR-A","name":"Telur Ayam Grade A","version":1,"base_uom":{"code":"KG","precision":3},"is_active":true,"catego
+  -> retry returned the SAME product id: 01a0ffdc-d234-7136-ac6e-8dfa594b73fa
+POST products TLR-A (new key = duplicate)                  HTTP 409  {"error":{"code":"DUPLICATE_CODE","message":"Product with code 'TLR-A' already exists.","details":{"entity":"Product","code":"TLR-A"}}}
+POST products without Idempotency-Key                      HTTP 428  {"error":{"code":"IDEMPOTENCY_KEY_REQUIRED","message":"Header Idempotency-Key wajib untuk transaksi ini."}}
+PATCH product rename (v1)                                  HTTP 200  {"data":{"id":"01a0ffdc-d234-7136-ac6e-8dfa594b73fa","sku":"TLR-A","name":"Telur Ayam Negeri A","category_id":"01a0ffdc-d1e0-71a8-a02e-3976fc373a5e","base_uom":{"code":"K
+PATCH product with stale version                           HTTP 409  {"error":{"code":"CONCURRENT_MODIFICATION","message":"Product was modified by someone else. Reload and try again.","details":{"entity":"Product","id":"01a0ffdc-d234-7136-
+deactivate category with active product                    HTTP 422  {"error":{"code":"CATEGORY_IN_USE","message":"Deactivate or move the active sub-categories and products first.","details":{"active_child_categories":0,"active_products":1
+deactivate product                                         HTTP 200  {"data":{"id":"01a0ffdc-d234-7136-ac6e-8dfa594b73fa","sku":"TLR-A","name":"Telur Ayam Negeri A","category_id":"01a0ffdc-d1e0-71a8-a02e-3976fc373a5e","base_uom":{"code":"K
+GET inactive product (history kept)                        HTTP 200  {"data":{"id":"01a0ffdc-d234-7136-ac6e-8dfa594b73fa","sku":"TLR-A","name":"Telur Ayam Negeri A","category_id":"01a0ffdc-d1e0-71a8-a02e-3976fc373a5e","base_uom":{"code":"K
+POST business-partners (cash customer)                     HTTP 201  {"data":{"id":"01a0ffdc-d488-7153-a5e7-f188bd3d483d","code":"CUS-MONALISA","name":"Bakso Monalisa","legal_name":null,"party_type":"ORGANIZATION","phone":"+6281211112222",
+PATCH customer credit terms                                HTTP 200  {"data":{"id":"01a0ffdc-d488-7153-a5e7-f188bd3d483d","code":"CUS-MONALISA","name":"Bakso Monalisa","legal_name":null,"party_type":"ORGANIZATION","phone":"+6281211112222",
+assign SUPPLIER role to same partner                       HTTP 200  {"data":{"id":"01a0ffdc-d488-7153-a5e7-f188bd3d483d","code":"CUS-MONALISA","name":"Bakso Monalisa","legal_name":null,"party_type":"ORGANIZATION","phone":"+6281211112222",
+walk-in with tempo (must fail)                             HTTP 422  {"error":{"code":"WALK_IN_MUST_BE_CASH","message":"Walk-in customers are cash only (no tempo, no credit limit)."}}
+search partner by phone (+62 form)                         HTTP 200  {"data":[{"id":"01a0ffdc-d488-7153-a5e7-f188bd3d483d","code":"CUS-MONALISA","name":"Bakso Monalisa","legal_name":null,"party_type":"ORGANIZATION","phone":"+6281211112222"
+POST nodes VAN-01 (no location)                            HTTP 201  {"data":{"id":"01a0ffdc-d5c3-723a-8e97-f6a138f41582","code":"VAN-01","name":"Mobil Box","location_id":null,"capabilities":["DELIVERY"],"notes":null,"is_active":true,"vers
+GET nodes with INVENTORY capability                        HTTP 200  {"data":[{"id":"01a0ffdc-c314-731b-a6b4-379e2919fd3b","code":"DG-WAY-PRIMARY","name":"DG Way Primary Node","location_id":"01a0ffdc-c310-7349-b4fd-a828efd004cd","capabilit
+deactivate location hosting active node                    HTTP 422  {"error":{"code":"LOCATION_HAS_ACTIVE_NODES","message":"Deactivate or move the active nodes at this location first.","details":{"active_nodes":1}}}
+logout ok
+
+## Live replay check after verbatim-json fix (md5 of two responses with same key)
+75a99f2d152bcc3980421e2d7507c316 / 75a99f2d152bcc3980421e2d7507c316 (identical)
+
+## Audit trail written by the smoke test
+             action             |   entity_type    | actor_label | business_date |                                                                                                                      
+--------------------------------+------------------+-------------+---------------+----------------------------------------------------------------------------------------------------------------------
+ operator.registered            | operator         | console     | 2026-10-03    | {"name": "Smoke Owner", "role": "OWNER", "email": "smoke@dgway.test"}
+ location.created               | location         | console     | 2026-10-03    | {"code": "DG-WAY-PRIMARY-SITE", "name": "DG Way Primary Site", "notes": "Generic primary site. Add the physical addre
+ node.created                   | node             | console     | 2026-10-03    | {"code": "DG-WAY-PRIMARY", "name": "DG Way Primary Node", "notes": null, "is_active": true, "location_id": "01a0ffdc-
+ category.created               | product_category | Smoke Owner | 2026-10-03    | {"code": "FOOD", "name": "Food", "is_active": true, "parent_id": null}
+ category.created               | product_category | Smoke Owner | 2026-10-03    | {"code": "EGG", "name": "Telur", "is_active": true, "parent_id": "01a0ffdc-d18c-71d9-a6c3-b0ff1f677b25"}
+ product.created                | product          | Smoke Owner | 2026-10-03    | {"sku": "TLR-A", "name": "Telur Ayam Grade A", "base_uom": "KG", "is_active": true, "category_id": "01a0ffdc-d1e0-71a
+ product.updated                | product          | Smoke Owner | 2026-10-03    | {"name": "Telur Ayam Negeri A"}
+ product.deactivated            | product          | Smoke Owner | 2026-10-03    | {"is_active": false}
+ business_partner.created       | business_partner | Smoke Owner | 2026-10-03    | {"code": "CUS-MONALISA", "name": "Bakso Monalisa", "email": null, "notes": null, "phone": "+6281211112222", "address"
+ business_partner.role_updated  | business_partner | Smoke Owner | 2026-10-03    | {"customer": {"notes": null, "is_active": true, "credit_limit": "1500000.0000", "customer_type": "RESTAURANT", "payme
+ business_partner.role_assigned | business_partner | Smoke Owner | 2026-10-03    | {"supplier": {"notes": null, "is_active": true, "payment_term_days": 0}}
+ node.created                   | node             | Smoke Owner | 2026-10-03    | {"code": "VAN-01", "name": "Mobil Box", "notes": null, "is_active": true, "location_id": null, "capabilities": ["DELI
+ category.created               | product_category | Smoke Owner | 2026-10-03    | {"code": "PACKAGING", "name": "Packaging", "is_active": true, "parent_id": null}
+(13 rows)
+
+## Row counts (no duplicates despite retries)
+ products | partners | roles | nodes | locations | categories 
+----------+----------+-------+-------+-----------+------------
+        1 |        1 |     2 |     2 |         1 |          3
+(1 row)
+

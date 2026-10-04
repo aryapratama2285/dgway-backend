@@ -1,0 +1,147 @@
+== READINESS (no auth) ==
+{"data":{"status":"ready","checks":{"database":"ok","migrations":"ok","app_key":"ok","default_node":"ok","timezone":"ok"}}}
+
+== LOGIN ==
+login ok (token redacted)
+
+== OPERATIONAL DEFAULTS (the app never hard-codes the node UUID) ==
+GET config                                                       HTTP 200  {"data":{"api_version":"v1","currency":"IDR","business_timezone":"Asia\/Jakarta","business_date":"2026-10-03","server_ti
+  currency=IDR tz=Asia/Jakarta business_date=2026-10-03 node=DG-WAY-PRIMARY walk_in=WALK-IN page={'default_per_page': 25, 'max_per_page': 100}
+
+== MASTER DATA ==
+supplier Peternak Bandung                                        HTTP 201  {"data":{"id":"01a100de-bfb4-705d-b554-3d043a97e6a0","code":"SUP-PETERNAK-BANDUNG","name":"Peternak Bandung","legal_name
+customer Catering ABC (tempo 7 hari, limit 5jt)                  HTTP 201  {"data":{"id":"01a100de-c01f-725e-9a65-306ab3b0edb7","code":"CUS-CATERING-ABC","name":"Catering ABC","legal_name":null,"
+category EGG                                                     HTTP 201  {"data":{"id":"01a100de-c07f-71e4-aac0-e9b02fb4ef6c","code":"EGG","name":"Telur","parent_id":null,"is_active":true,"vers
+product TELUR-STD (KG)                                           HTTP 201  {"data":{"id":"01a100de-c0dc-7192-bafc-706ff95d0e30","sku":"TELUR-STD","name":"Telur Ayam Standar","category_id":"01a100
+
+== PO 150 KG × 23.000 → GR 150 KG (140 ACCEPT, 10 LOSS) → LOT ==
+POST purchase-orders                                             HTTP 201  {"data":{"id":"01a100de-c16a-718e-89cf-791984360a83","number":"PO-261003-001","status":"DRAFT","supplier_id":"01a100de-b
+  PO-261003-001 total=3450000.0000
+POST purchase-orders/{id}/confirm                                HTTP 200  {"data":{"id":"01a100de-c16a-718e-89cf-791984360a83","number":"PO-261003-001","status":"CONFIRMED","supplier_id":"01a100
+POST goods-receipts (from PO)                                    HTTP 201  {"data":{"id":"01a100de-c284-70fc-ba77-71956b2b7d1e","number":"GR-261003-001","status":"DRAFT","type":"PURCHASE_ORDER","
+  draft lots: 0 (a draft creates no lot)
+POST goods-receipts/{id}/post                                    HTTP 200  {"data":{"id":"01a100de-c284-70fc-ba77-71956b2b7d1e","number":"GR-261003-001","status":"POSTED","type":"PURCHASE_ORDER",
+RETRY post (same key)                                            HTTP 200  {"data":{"id":"01a100de-c284-70fc-ba77-71956b2b7d1e","number":"GR-261003-001","status":"POSTED","type":"PURCHASE_ORDER",
+  Idempotent-Replayed: true; lots for GR: 1
+GET lots?goods_receipt_id                                        HTTP 200  {"data":[{"id":"01a100de-c33e-701b-9914-55cac2b88c36","number":"LOT-261003-001","origin":"RECEIPT","status":"ACTIVE","pr
+  lot=LOT-261003-001 origin=RECEIPT status=ACTIVE original=150.0000 remaining={'on_hand': '140.0000', 'available': '140.0000', 'quarantine': '0.0000', 'return_pending': '0.0000'} supplier=Peternak Bandung best_before=2026-10-24
+  STOCK: available=140.0000 quarantine=0.0000 ledger_on_hand=140.0000
+
+== RETAIL (walk-in) 30 KG × 27.000 = 810.000, CASH full ==
+POST sales (walk-in, confirm + cash)                             HTTP 201  {"data":{"id":"01a100de-c5cc-7247-84d0-5e1d47c71308","number":"SAL-261003-001","origin":"DIRECT","order_reference_id":nu
+  SAL-261003-001 status=COMPLETED total=810000.0000 outstanding=0.0000
+  STOCK: available=110.0000 quarantine=0.0000 ledger_on_hand=110.0000   (expected available 110)
+
+== B2B Catering ABC 50 KG × 25.500 = 1.275.000, paid 775.000 ==
+POST sales (credit customer, confirm + 775.000)                  HTTP 201  {"data":{"id":"01a100de-c721-73c1-8aa8-80a8067e9394","number":"SAL-261003-002","origin":"DIRECT","order_reference_id":nu
+  SAL-261003-002 status=CONFIRMED total=1275000.0000 paid=775000.0000 outstanding=500000.0000 due=2026-10-10
+RETRY sale (same key)                                            HTTP 201  {"data":{"id":"01a100de-c721-73c1-8aa8-80a8067e9394","number":"SAL-261003-002","origin":"DIRECT","order_reference_id":nu
+  Idempotent-Replayed: true; sales=2 SALE movements=2
+  STOCK: available=60.0000 quarantine=0.0000 ledger_on_hand=60.0000   (expected available 60)
+
+== LOT: remaining, movements, allocation, customer destination ==
+GET lots/{number}                                                HTTP 200  {"data":{"id":"01a100de-c33e-701b-9914-55cac2b88c36","number":"LOT-261003-001","origin":"RECEIPT","status":"ACTIVE","pro
+  status=ACTIVE remaining={'on_hand': '60.0000', 'available': '60.0000', 'quarantine': '0.0000', 'return_pending': '0.0000'} dispositions=[('ACCEPT', '140.0000'), ('LOSS', '10.0000')]
+GET lots/{id}/movements                                          HTTP 200  {"data":[{"id":"01a100de-c732-71c2-8fa5-d95ea8c48d0f","sequence":5,"movement_type":"SALE","bucket":"AVAILABLE","directio
+  #1 RECEIPT  AVAILABLE     140.0000  goods_receipt
+  #2 RECEIPT  QUARANTINE     10.0000  goods_receipt
+  #3 LOSS     QUARANTINE    -10.0000  goods_receipt
+  #4 SALE     AVAILABLE     -30.0000  sale
+  #5 SALE     AVAILABLE     -50.0000  sale
+  allocation (SQL): SAL-261003-001 30.0000 from LOT-261003-001 | SAL-261003-002 50.0000 from LOT-261003-001
+GET lots/{id}/destinations                                       HTTP 200  {"data":[{"sale_id":"01a100de-c5cc-7247-84d0-5e1d47c71308","sale_number":"SAL-261003-001","business_date":"2026-10-03","
+  SAL-261003-001 2026-10-03 customer=walk-in sold=30.0000 returned=0.0000 net=30.0000
+  SAL-261003-002 2026-10-03 customer=Catering ABC sold=50.0000 returned=0.0000 net=50.0000
+GET inventory/lot-balances                                       HTTP 200  {"data":[{"lot_id":"01a100de-c33e-701b-9914-55cac2b88c36","lot_number":"LOT-261003-001","origin":"RECEIPT","business_dat
+  LOT-261003-001 AVAILABLE 60.0000 KG
+
+== PAYMENT + RECEIVABLE ==
+GET payments?sale_id                                             HTTP 200  {"data":[{"id":"01a100de-c72b-7334-98d6-086d1b8e6787","number":"PAY-261003-002","status":"POSTED","sale_id":"01a100de-c7
+  [('PAY-261003-002', 'BANK_TRANSFER', '775000.0000')]
+GET receivables/customers                                        HTTP 200  {"data":[{"customer":{"id":"01a100de-c01f-725e-9a65-306ab3b0edb7","code":"CUS-CATERING-ABC","name":"Catering ABC","phone
+  CUS-CATERING-ABC Catering ABC owes 500000.0000 (available credit 4500000.0000)
+
+== DASHBOARD + ACTIVITY + SEARCH ==
+GET dashboard                                                    HTTP 200  {"data":{"business_date":"2026-10-03","timezone":"Asia\/Jakarta","currency":"IDR","sales":{"count":2,"total":"2085000.00
+  sales: 2 / 2085000.0000 | payments: 1585000.0000 (cash 810000.0000, transfer 775000.0000, qris 0.0000) | receivable: total 500000.0000 due 0.0000 overdue 0.0000
+  purchasing: PO 1 3450000.0000, received [{'uom': 'KG', 'received': '150.0000', 'accept': '140.0000', 'loss': '10.0000', 'return_to_supplier': '0.0000', 'regrade': '0.0000'}] | inventory: [{'uom': 'KG', 'available': '60.0000', 'quarantine': '0.0000', 'return_pending': '0.0000'}], loss today 10.0000, active lots 1
+GET activity                                                     HTTP 200  {"data":[{"type":"SALE","occurred_at":"2026-10-03T08:26:02+00:00","document":{"type":"sale","id":"01a100de-c721-73c1-8aa
+  SALE            SAL-261003-002   1275000.0000 Catering ABC
+  PAYMENT         PAY-261003-002    775000.0000 Catering ABC
+  SALE            SAL-261003-001    810000.0000 
+  PAYMENT         PAY-261003-001    810000.0000 
+  LOSS            GR-261003-001                 
+  PURCHASE_ORDER  PO-261003-001    3450000.0000 Peternak Bandung
+  GOODS_RECEIPT   GR-261003-001    3450000.0000 Peternak Bandung
+  receivable_change: {'opening': '0.0000', 'closing': '500000.0000', 'change': '500000.0000'}
+GET search?q=0812-3333 (phone, local format)                     HTTP 200  {"data":[{"type":"partner","id":"01a100de-c01f-725e-9a65-306ab3b0edb7","code":"CUS-CATERING-ABC","label":"Catering ABC",
+  [('partner', 'CUS-CATERING-ABC')]
+GET search?q=<lot number>                                        HTTP 200  {"data":[{"type":"inventory_lot","id":"01a100de-c33e-701b-9914-55cac2b88c36","code":"LOT-261003-001","label":"LOT-261003
+  [('inventory_lot', 'LOT-261003-001')]
+
+== AUDIT + TRACE + INTEGRITY ==
+  auth.login|1
+  business_partner.created|3
+  category.created|1
+  goods_receipt.created|1
+  goods_receipt.posted|1
+  inventory.loss|1
+  inventory.receipt|1
+  inventory.sale|2
+  inventory_lot.created|1
+  location.created|1
+  node.created|1
+  operator.registered|1
+  payment.recorded|2
+  product.created|1
+  purchase_order.confirmed|1
+  purchase_order.created|1
+  sale.completed|1
+  sale.confirmed|2
+  sale.created|2
+  audit rows carrying request_id: 21 / 21
+GET inventory/integrity                                          HTTP 200  {"data":{"consistent":true,"mismatches":[]}}
+  php artisan dgway:trace LOT-261003-001:
+    Trace of lot LOT-261003-001 (RECEIPT, ACTIVE) → TELUR-STD @ DG-WAY-PRIMARY
+    Supplier: SUP-PETERNAK-BANDUNG Peternak Bandung · Receipt: GR-261003-001 · Original: 150.0000 · Remaining: 60.0000 (available 60.0000)
+    +-------------+----------+--------+
+    | disposition | qty      | target |
+    +-------------+----------+--------+
+    | ACCEPT      | 140.0000 | -      |
+    | LOSS        | 10.0000  | -      |
+    +-------------+----------+--------+
+    Lineage: LOT-261003-001
+    +---+---------+------------+----------+------------------------+
+    | # | type    | bucket     | qty      | source                 |
+    +---+---------+------------+----------+------------------------+
+    | 1 | RECEIPT | AVAILABLE  | 140.0000 | goods_receipt:01a100de |
+    | 2 | RECEIPT | QUARANTINE | 10.0000  | goods_receipt:01a100de |
+    | 3 | LOSS    | QUARANTINE | -10.0000 | goods_receipt:01a100de |
+    | 4 | SALE    | AVAILABLE  | -30.0000 | sale:01a100de          |
+    | 5 | SALE    | AVAILABLE  | -50.0000 | sale:01a100de          |
+    +---+---------+------------+----------+------------------------+
+    +----------------+------------+--------------+---------+----------+---------+
+    | sale           | date       | customer     | sold    | returned | net     |
+    +----------------+------------+--------------+---------+----------+---------+
+    | SAL-261003-001 | 2026-10-03 | walk-in      | 30.0000 | 0.0000   | 30.0000 |
+    | SAL-261003-002 | 2026-10-03 | Catering ABC | 50.0000 | 0.0000   | 50.0000 |
+    +----------------+------------+--------------+---------+----------+---------+
+    +-------------------------------+-----------------------+------------------------+-------+
+    | occurred_at                   | action                | entity                 | actor |
+    +-------------------------------+-----------------------+------------------------+-------+
+    | 2026-10-03 08:26:01.232403+00 | goods_receipt.created | goods_receipt:01a100de | Owner |
+    | 2026-10-03 08:26:01.411447+00 | inventory_lot.created | inventory_lot:01a100de | Owner |
+    | 2026-10-03 08:26:01.432522+00 | goods_receipt.posted  | goods_receipt:01a100de | Owner |
+    | 2026-10-03 08:26:01.433164+00 | inventory.receipt     | goods_receipt:01a100de | Owner |
+    | 2026-10-03 08:26:01.43373+00  | inventory.loss        | goods_receipt:01a100de | Owner |
+    | 2026-10-03 08:26:02.066791+00 | sale.created          | sale:01a100de          | Owner |
+    | 2026-10-03 08:26:02.091941+00 | sale.confirmed        | sale:01a100de          | Owner |
+    | 2026-10-03 08:26:02.09262+00  | inventory.sale        | sale:01a100de          | Owner |
+    | 2026-10-03 08:26:02.093742+00 | sale.completed        | sale:01a100de          | Owner |
+    | 2026-10-03 08:26:02.406826+00 | sale.created          | sale:01a100de          | Owner |
+    | 2026-10-03 08:26:02.428684+00 | sale.confirmed        | sale:01a100de          | Owner |
+    | 2026-10-03 08:26:02.429283+00 | inventory.sale        | sale:01a100de          | Owner |
+    +-------------------------------+-----------------------+------------------------+-------+
+  Inventory projection is consistent with the ledger.
+
+logout ok

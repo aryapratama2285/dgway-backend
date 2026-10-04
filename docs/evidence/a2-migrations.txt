@@ -1,0 +1,94 @@
+## migrate:fresh (dev DB dgway)
+
+  Dropping all tables ........................................... 35.31ms DONE
+
+   INFO  Preparing database.  
+
+  Creating migration table ....................................... 8.05ms DONE
+
+   INFO  Running migrations.  
+
+  0001_01_01_000000_create_users_table ........................... 7.56ms DONE
+  0001_01_01_000001_create_cache_table ........................... 8.85ms DONE
+  0001_01_01_000002_create_jobs_table ........................... 12.85ms DONE
+  2026_10_03_000100_create_personal_access_tokens_table .......... 6.52ms DONE
+  2026_10_03_000200_create_append_only_guard_function ............ 1.76ms DONE
+  2026_10_03_000300_create_audit_logs_table ...................... 9.66ms DONE
+  2026_10_03_000400_create_idempotency_keys_table ................ 8.57ms DONE
+  2026_10_03_000500_create_document_sequences_table .............. 3.12ms DONE
+  2026_10_03_000600_create_uoms_table ............................ 5.84ms DONE
+  2026_10_03_100100_create_catalog_tables ....................... 17.37ms DONE
+  2026_10_03_100200_create_business_partner_tables .............. 21.67ms DONE
+  2026_10_03_100300_create_network_tables ....................... 14.88ms DONE
+
+
+## rollback A2 (3 steps)
+
+   INFO  Rolling back migrations.  
+
+  2026_10_03_100300_create_network_tables ....................... 11.13ms DONE
+  2026_10_03_100200_create_business_partner_tables ............... 6.16ms DONE
+  2026_10_03_100100_create_catalog_tables ........................ 4.95ms DONE
+
+
+## tables after A2 rollback
+audit_logs, cache, cache_locks, document_sequences, failed_jobs, idempotency_keys, job_batches, jobs, migrations, personal_access_tokens, uoms, users
+
+## re-migrate
+
+   INFO  Running migrations.  
+
+  2026_10_03_100100_create_catalog_tables ....................... 21.41ms DONE
+  2026_10_03_100200_create_business_partner_tables .............. 20.86ms DONE
+  2026_10_03_100300_create_network_tables ....................... 15.37ms DONE
+
+
+## full rollback of all migrations
+
+  2026_10_03_100300_create_network_tables ........................ 8.89ms DONE
+  2026_10_03_100200_create_business_partner_tables ............... 5.75ms DONE
+  2026_10_03_100100_create_catalog_tables ........................ 4.82ms DONE
+  2026_10_03_000600_create_uoms_table ............................ 1.97ms DONE
+  2026_10_03_000500_create_document_sequences_table .............. 1.70ms DONE
+  2026_10_03_000400_create_idempotency_keys_table ................ 2.88ms DONE
+  2026_10_03_000300_create_audit_logs_table ...................... 2.95ms DONE
+  2026_10_03_000200_create_append_only_guard_function ............ 1.15ms DONE
+  2026_10_03_000100_create_personal_access_tokens_table .......... 2.79ms DONE
+  0001_01_01_000002_create_jobs_table ............................ 5.45ms DONE
+  0001_01_01_000001_create_cache_table ........................... 3.28ms DONE
+  0001_01_01_000000_create_users_table ........................... 2.91ms DONE
+
+
+## migrate again from zero
+
+   INFO  Running migrations.  
+
+  0001_01_01_000000_create_users_table .......................... 11.55ms DONE
+  0001_01_01_000001_create_cache_table ........................... 9.61ms DONE
+  0001_01_01_000002_create_jobs_table ........................... 14.73ms DONE
+  2026_10_03_000100_create_personal_access_tokens_table ......... 11.61ms DONE
+  2026_10_03_000200_create_append_only_guard_function ............ 2.83ms DONE
+  2026_10_03_000300_create_audit_logs_table ..................... 10.58ms DONE
+  2026_10_03_000400_create_idempotency_keys_table ................ 9.02ms DONE
+  2026_10_03_000500_create_document_sequences_table .............. 3.33ms DONE
+  2026_10_03_000600_create_uoms_table ............................ 5.57ms DONE
+  2026_10_03_100100_create_catalog_tables ....................... 16.12ms DONE
+  2026_10_03_100200_create_business_partner_tables .............. 24.99ms DONE
+  2026_10_03_100300_create_network_tables ....................... 15.98ms DONE
+
+
+
+  Migration name .............................................. Batch / Status  
+  0001_01_01_000000_create_users_table ............................... [1] Ran  
+  0001_01_01_000001_create_cache_table ............................... [1] Ran  
+  0001_01_01_000002_create_jobs_table ................................ [1] Ran  
+  2026_10_03_000100_create_personal_access_tokens_table .............. [1] Ran  
+  2026_10_03_000200_create_append_only_guard_function ................ [1] Ran  
+  2026_10_03_000300_create_audit_logs_table .......................... [1] Ran  
+  2026_10_03_000400_create_idempotency_keys_table .................... [1] Ran  
+  2026_10_03_000500_create_document_sequences_table .................. [1] Ran  
+  2026_10_03_000600_create_uoms_table ................................ [1] Ran  
+  2026_10_03_100100_create_catalog_tables ............................ [1] Ran  
+  2026_10_03_100200_create_business_partner_tables ................... [1] Ran  
+  2026_10_03_100300_create_network_tables ............................ [1] Ran  
+

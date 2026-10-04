@@ -1,0 +1,75 @@
+== LOGIN ==
+login ok (token redacted)
+
+== MASTER DATA ==
+supplier SUP-BANDUNG                                           HTTP 201  {"data":{"id":"01a10029-cb00-72ca-b0b2-bc5ff7f86963","code":"SUP-BANDUNG","name":"Supplier Telur Bandung","legal_name":null,"party_type":"OR
+customer CUS-CATERING-ABC (tempo 7 hari, limit 5jt)            HTTP 201  {"data":{"id":"01a10029-cb63-73b2-9d36-6c94038ba894","code":"CUS-CATERING-ABC","name":"Catering ABC","legal_name":null,"party_type":"ORGANIZ
+category EGG                                                   HTTP 201  {"data":{"id":"01a10029-cbc9-736b-8787-99dcb383f69b","code":"EGG","name":"Telur","parent_id":null,"is_active":true,"version":1}}
+product TELUR-STD (KG)                                         HTTP 201  {"data":{"id":"01a10029-cc23-7010-968d-b6f8b5d022a0","sku":"TELUR-STD","name":"Telur Ayam Standar","category_id":"01a10029-cbc9-736b-8787-99
+node DG-WAY-PRIMARY (bootstrap)                                HTTP 200  {"data":[{"id":"01a10029-ba63-71c5-a754-3dfcbb079320","code":"DG-WAY-PRIMARY","name":"DG Way Primary Node","location_id":"01a10029-ba5e-73a0
+
+== PURCHASE + RECEIVE: 150 KG @ 23.000, 140 accepted, 10 loss ==
+POST goods-receipts                                            HTTP 201  {"data":{"id":"01a10029-ccdb-73a8-a925-a9c56dba7399","number":"GR-261003-001","status":"DRAFT","type":"DIRECT_PURCHASE","supplier_id":"01a10
+POST goods-receipts/{id}/post                                  HTTP 200  {"data":{"id":"01a10029-ccdb-73a8-a925-a9c56dba7399","number":"GR-261003-001","status":"POSTED","type":"DIRECT_PURCHASE","supplier_id":"01a1
+  total_cost=3450000.0000   STOCK: available=140.0000 quarantine=0.0000 ledger_on_hand=140.0000
+
+== Scenario A — walk-in cash sale 30 KG × 26.000 = 780.000, CASH 780.000 ==
+POST sales (walk-in, confirm + pay)                            HTTP 201  {"data":{"id":"01a10029-ce09-73a6-a790-9eddde90864d","number":"SAL-261003-001","origin":"DIRECT","order_reference_id":null,"status":"COMPLET
+  SAL-261003-001 status=COMPLETED grand_total=780000.0000 paid=780000.0000 outstanding=0.0000
+  STOCK: available=110.0000 quarantine=0.0000 ledger_on_hand=110.0000
+
+== Scenario B — B2B Catering ABC 100 KG × 25.000 = 2.500.000, pays 1.500.000 then 700.000 ==
+POST sales (credit customer, confirm + 1.5jt)                  HTTP 201  {"data":{"id":"01a10029-cf5e-7376-8115-e39fabfdc914","number":"SAL-261003-002","origin":"DIRECT","order_reference_id":null,"status":"CONFIRM
+  SAL-261003-002 status=CONFIRMED grand_total=2500000.0000 paid=1500000.0000 outstanding=1000000.0000 due=2026-10-10
+POST sales/{id}/payments QRIS 700.000                          HTTP 201  {"data":{"id":"01a10029-d094-7339-a03b-63f6f67e5c08","number":"PAY-261003-003","status":"POSTED","sale_id":"01a10029-cf5e-7376-8115-e39fabfd
+  payment=PAY-261003-003 outstanding_after=300000.0000
+  STOCK: available=10.0000 quarantine=0.0000 ledger_on_hand=10.0000
+
+== Scenario C — retry the 700.000 payment with the SAME Idempotency-Key ==
+RETRY POST sales/{id}/payments (same key)                      HTTP 201  {"data":{"id":"01a10029-d094-7339-a03b-63f6f67e5c08","number":"PAY-261003-003","status":"POSTED","sale_id":"01a10029-cf5e-7376-8115-e39fabfd
+  Idempotent-Replayed: true; outstanding=300000.0000; payments rows for sale B: 2
+overpayment 400.000 > outstanding 300.000 (new key)            HTTP 409  {"error":{"code":"PAYMENT_EXCEEDS_OUTSTANDING","message":"Payment 400000.0000 is more than the outstanding 300000.0000 of sale SAL-261003-00
+
+== Scenario D — sell more than stock (10 KG left, try 50 KG) ==
+POST sales 50 KG                                               HTTP 409  {"error":{"code":"INSUFFICIENT_STOCK","message":"Insufficient AVAILABLE stock: available 10.0000 KG, requested 50.0000.","details":{"product
+  stock_movements before/after: 5/5  sales before/after: 2/2
+  STOCK: available=10.0000 quarantine=0.0000 ledger_on_hand=10.0000
+
+== Scenario E — reverse a valid sale (walk-in 5 KG, paid cash) ==
+POST sales (walk-in 5 KG)                                      HTTP 201  {"data":{"id":"01a10029-d3d4-7041-a214-50f2d8e7f34a","number":"SAL-261003-003","origin":"DIRECT","order_reference_id":null,"status":"COMPLET
+  STOCK after sale: available=5.0000 quarantine=0.0000 ledger_on_hand=5.0000
+reverse without reverse_payments (policy)                      HTTP 409  {"error":{"code":"SALE_HAS_PAYMENTS","message":"Sale SAL-261003-003 has payments of 130000.0000. Reverse them first, or reverse the sale wit
+reverse with reverse_payments=true                             HTTP 200  {"data":{"id":"01a10029-d3d4-7041-a214-50f2d8e7f34a","number":"SAL-261003-003","origin":"DIRECT","order_reference_id":null,"status":"REVERSE
+  status=REVERSED paid=0.0000   STOCK after reversal: available=10.0000 quarantine=0.0000 ledger_on_hand=10.0000
+GET inventory/movements (trace)                                HTTP 200  {"data":[{"id":"01a10029-d4f7-72dd-8d22-f3ed838f7826","sequence":7,"movement_type":"REVERSAL","product_id":"01a10029-cc23-7010-968d-b6f8b5d0
+  #6 SALE      -5.0000  reverses=-
+  #7 REVERSAL  +5.0000  reverses=01a10029
+reverse again (must fail)                                      HTTP 409  {"error":{"code":"INVALID_STATUS_TRANSITION","message":"Sale cannot go from REVERSED to REVERSED.","details":{"document":"Sale","from":"REVE
+
+== OWNER QUERY ==
+GET reports/daily                                              HTTP 200  {"data":{"period":{"from":"2026-10-03","to":"2026-10-03"},"sales":{"count":2,"walk_in_count":1,"subtotal":"3280000.0000","discount":"0.0000"
+  sales: count=2 grand_total=3280000.0000 | payments received=3110000.0000 reversed=130000.0000 net=2980000.0000 | by method: {'CASH': '910000.0000', 'BANK_TRANSFER': '1500000.0000', 'QRIS': '700000.0000'}
+GET receivables/customers                                      HTTP 200  {"data":[{"customer":{"id":"01a10029-cb63-73b2-9d36-6c94038ba894","code":"CUS-CATERING-ABC","name":"Catering ABC","phone":"+6281233334444"},
+  CUS-CATERING-ABC Catering ABC owes 300000.0000 (overdue 0, oldest due 2026-10-10, available credit 4700000.0000)
+GET receivables/summary                                        HTTP 200  {"data":{"as_of":"2026-10-03","total":"300000.0000","not_yet_due":"300000.0000","due_today":"0.0000","overdue":"0.0000","customers":1,"overd
+GET sales?q=SAL (search, paged)                                HTTP 200  {"data":[{"id":"01a10029-d3d4-7041-a214-50f2d8e7f34a","number":"SAL-261003-003","status":"REVERSED","payment_status":"NONE","business_date":
+  total=3
+GET inventory/integrity                                        HTTP 200  {"data":{"consistent":true,"mismatches":[]}}
+  STOCK: available=10.0000 quarantine=0.0000 ledger_on_hand=10.0000
+
+== Scenario F — SQL against payment history (bypassing the app) ==
+  UPDATE payments SET amount = 1:
+    ERROR:  Table payments is append-only: UPDATE is not allowed
+    CONTEXT:  PL/pgSQL function dgway_forbid_mutation() line 3 at RAISE
+  DELETE FROM payments:
+    ERROR:  Table payments is append-only: DELETE is not allowed
+    CONTEXT:  PL/pgSQL function dgway_forbid_mutation() line 3 at RAISE
+  UPDATE sales SET paid_amount = 2500000 (sale B):
+    ERROR:  new row for relation "sales" violates check constraint "sales_completed_check"
+    DETAIL:  Failing row contains (01a10029-cf5e-7376-8115-e39fabfdc914, 3, SAL-261003-002, DIRECT, null, 01a10029-cb63-73b2-9d36-6c94038ba894, 01a10029-ba63-71c5-a754-3dfcbb079320, 2026-10-03, IDR, CONFIRMED, 2500000.0000, 0.0000, 2500000.0000, 2500000.0000, 0.0000, 7, 2026-10-10, 2026-10-03 05:08:22.507352+00, null, null, null, null, 01a10029-bc77-7325-80f5-85d716d77fac, 01a10029-bc77-7325-80f5-85d716d77fac, null, 2026-10-03 05:08:22.488074+00, 2026-10-03 05:08:22.799042+00, 0.0000).
+  DELETE FROM payment_reversals:
+    ERROR:  Table payment_reversals is append-only: DELETE is not allowed
+    CONTEXT:  PL/pgSQL function dgway_forbid_mutation() line 3 at RAISE
+  payments rows=4 sum=3110000.0000  sale B paid=2200000.0000 outstanding=300000.0000
+
+logout ok

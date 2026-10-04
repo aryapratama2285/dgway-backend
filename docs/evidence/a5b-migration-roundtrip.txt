@@ -1,0 +1,105 @@
+# A5-B migration round-trip on the development database (pre-A5-B data: A4 smoke dataset)
+# baseline fingerprint taken BEFORE A5-B was ever applied: a5b-dev-before.json
+== 0. A5-B rolled back: strict compare vs pre-A5-B baseline
+Reconciliation OK: fingerprint identical.
+exit=0
+== 1. migrate (A5-B up)
+
+   INFO  Running migrations.  
+
+  2026_10_04_100100_create_inventory_lots ....................... 69.05ms DONE
+
+exit=0
+== 2. compare vs baseline --allow-additions (normalized: list sections keyed by natural key)
+  added (accepted): invariants.document_sequences.LOT
+  added (accepted): invariants.lots
+  added (accepted): checksums.goods_receipt_lines+added
+  added (accepted): checksums.inventory_lots
+  added (accepted): checksums.stock_movements+added
+Reconciliation OK: fingerprint identical.
+exit=0
+== 3. inventory verify (ledger vs stock_balances AND stock_lot_balances)
+Inventory projection is consistent with the ledger.
+exit=0
+== 4. rollback A5-B
+
+   INFO  Rolling back migrations.  
+
+  2026_10_04_100100_create_inventory_lots ....................... 23.64ms DONE
+
+exit=0
+== 5. strict compare after rollback (must be identical to pre-A5-B)
+Reconciliation OK: fingerprint identical.
+exit=0
+== 6. re-migrate
+
+   INFO  Running migrations.  
+
+  2026_10_04_100100_create_inventory_lots ....................... 67.79ms DONE
+
+exit=0
+== 7. strict compare vs first up (deterministic legacy lot identity)
+Reconciliation OK: fingerprint identical.
+exit=0
+== 8. verify
+Inventory projection is consistent with the ledger.
+exit=0
+== 9. lot invariants after up
+{
+ "by_origin": [
+  {
+   "origin": "LEGACY",
+   "n": 1,
+   "original": "0.0000"
+  }
+ ],
+ "original_vs_created": {
+  "original": "0.0000",
+  "created": "0.0000"
+ },
+ "remaining_by_origin_bucket": [
+  {
+   "origin": "LEGACY",
+   "bucket": "AVAILABLE",
+   "remaining": "10.0000"
+  },
+  {
+   "origin": "LEGACY",
+   "bucket": "QUARANTINE",
+   "remaining": "0.0000"
+  }
+ ],
+ "remaining_by_lot": {
+  "positions": 1,
+  "md5": "0bce3172371abdbe453cd15f5ea04ab3"
+ },
+ "movements_by_type": [
+  {
+   "movement_type": "LOSS",
+   "n": 1,
+   "quantity": "10.0000"
+  },
+  {
+   "movement_type": "RECEIPT",
+   "n": 2,
+   "quantity": "150.0000"
+  },
+  {
+   "movement_type": "REVERSAL",
+   "n": 1,
+   "quantity": "5.0000"
+  },
+  {
+   "movement_type": "SALE",
+   "n": 3,
+   "quantity": "135.0000"
+  }
+ ],
+ "unattributed_movements": {
+  "n": 7
+ },
+ "lineage": {
+  "edges": 0,
+  "md5": "d41d8cd98f00b204e9800998ecf8427e"
+ }
+}

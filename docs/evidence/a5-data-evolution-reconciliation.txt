@@ -1,0 +1,112 @@
+## 1. Fingerprint of the dev database (A4 smoke-test data) BEFORE schema evolution
+Fingerprint written to /tmp/claude-0/fp-before.json
+rows per preserved table:
+  audit_logs: 31 rows md5=f2d2179cf8d6123e6314c4e6ebec7bf9
+  business_partner_roles: 2 rows md5=ef17d007a13ac2c6045b06a6f9a32dd1
+  business_partners: 2 rows md5=b883eeaa58c10e14a289dfc5858306d7
+  customer_return_lines: 0 rows md5=d41d8cd98f00b204e9800998ecf8427e
+  customer_returns: 0 rows md5=d41d8cd98f00b204e9800998ecf8427e
+  goods_receipt_dispositions: 2 rows md5=82d504fe5a884450ae4b015b8a955d8c
+  goods_receipt_lines: 1 rows md5=6d210309566597be8fe9a561bfd0c82e
+  goods_receipts: 1 rows md5=b6cb68fb68d1954b84070f6fb532f9cb
+  inventory_operations: 0 rows md5=d41d8cd98f00b204e9800998ecf8427e
+  locations: 1 rows md5=6a8acac9e6a7095dcc0e920e030f2a7d
+  nodes: 1 rows md5=556146236be4249f322f9c590ba672fa
+  payment_reversals: 1 rows md5=1b7deb85c78618ee90918bf5ffc41f3d
+  payments: 4 rows md5=cbb4f6a72bd197786aec2bad300f0d25
+  product_categories: 1 rows md5=6ac007018943116296d29b6e0bf9bc2b
+  products: 1 rows md5=d2f842cb51558431af0a80f62f195d41
+  purchase_order_lines: 0 rows md5=d41d8cd98f00b204e9800998ecf8427e
+  purchase_orders: 0 rows md5=d41d8cd98f00b204e9800998ecf8427e
+  sale_lines: 3 rows md5=377a38c9444d3bb8601cd7a2a4457d26
+  sales: 3 rows md5=e0d72acd63349a0d565f20cdf2ae3fc9
+  stock_movements: 7 rows md5=47ba4abb4afb18572ce756a799e61a7b
+  uoms: 3 rows md5=b208fef2a02e6f60a9fb3cef3b52c9b3
+  users: 1 rows md5=9978e6a1ec3e48f9d0f2568d506b9e82
+
+## 2. Schema evolution: roll back the A5 identity-guard migration (non-destructive), then migrate forward again
+
+   INFO  Rolling back migrations.  
+
+  2026_10_03_400100_guard_master_data_identity .................. 24.89ms DONE
+
+
+   INFO  Running migrations.  
+
+  2026_10_03_400100_guard_master_data_identity ................... 9.82ms DONE
+
+
+## 3. Reconcile AFTER
+Reconciliation OK: fingerprint identical.
+exit=0
+
+## 4. Projection rebuild is not a change of history
+Rebuilt 2 position(s). Mismatches before: 0, after: 0.
+Reconciliation OK: fingerprint identical.
+exit=0
+
+## 5. Key invariants (economic meaning)
+{
+  "receivable": {
+    "open_sales": 2,
+    "outstanding": "300000.0000",
+    "recomputed": "300000.0000"
+  },
+  "payments": {
+    "n": 4,
+    "gross": "3110000.0000",
+    "reversed_n": 1,
+    "reversed": "130000.0000",
+    "valid": "2980000.0000"
+  },
+  "customer_returns": {
+    "n": 0,
+    "total_value": "0.0000",
+    "credit": "0.0000",
+    "refund": "0.0000"
+  },
+  "stock_by_position": [
+    {
+      "product_id": "01a10029-cc23-7010-968d-b6f8b5d022a0",
+      "node_id": "01a10029-ba63-71c5-a754-3dfcbb079320",
+      "bucket": "AVAILABLE",
+      "quantity": "10.0000"
+    },
+    {
+      "product_id": "01a10029-cc23-7010-968d-b6f8b5d022a0",
+      "node_id": "01a10029-ba63-71c5-a754-3dfcbb079320",
+      "bucket": "QUARANTINE",
+      "quantity": "0.0000"
+    }
+  ]
+}
+
+## 6. Trace of SAL-261003-003 (reversed walk-in sale)
+Trace of SAL-261003-003 → sale 01a10029-d3d4-7041-a214-50f2d8e7f34a
++------------------+----------------+--------------------------------------+-------------+---------------+-------------+
+| type             | number         | id                                   | status      | business_date | amount      |
++------------------+----------------+--------------------------------------+-------------+---------------+-------------+
+| sale             | SAL-261003-003 | 01a10029-d3d4-7041-a214-50f2d8e7f34a | REVERSED    | 2026-10-03    | 130000.0000 |
+| payment          | PAY-261003-004 | 01a10029-d3e1-72e5-bd85-712092ab1931 | REVERSED    | 2026-10-03    | 130000.0000 |
+| payment_reversal | -              | 01a10029-d4f4-71dd-8427-6dae0298a2c1 | salah input | 2026-10-03    | -           |
++------------------+----------------+--------------------------------------+-------------+---------------+-------------+
+Stock movements:
++---+----------+-----------+---------+---------------+-------------+----------+
+| # | type     | bucket    | qty     | source        | correlation | reverses |
++---+----------+-----------+---------+---------------+-------------+----------+
+| 6 | SALE     | AVAILABLE | -5.0000 | sale:01a10029 | 01a10029    | -        |
+| 7 | REVERSAL | AVAILABLE | 5.0000  | sale:01a10029 | 01a10029    | 01a10029 |
++---+----------+-----------+---------+---------------+-------------+----------+
+Audit:
++-------------------------------+--------------------+------------------+----------+
+| occurred_at                   | action             | entity           | actor    |
++-------------------------------+--------------------+------------------+----------+
+| 2026-10-03 05:08:23.643469+00 | sale.created       | sale:01a10029    | Smoke A4 |
+| 2026-10-03 05:08:23.661308+00 | sale.confirmed     | sale:01a10029    | Smoke A4 |
+| 2026-10-03 05:08:23.662076+00 | inventory.sale     | sale:01a10029    | Smoke A4 |
+| 2026-10-03 05:08:23.662664+00 | payment.recorded   | payment:01a10029 | Smoke A4 |
+| 2026-10-03 05:08:23.663198+00 | sale.completed     | sale:01a10029    | Smoke A4 |
+| 2026-10-03 05:08:23.938128+00 | sale.reversed      | sale:01a10029    | Smoke A4 |
+| 2026-10-03 05:08:23.939094+00 | payment.reversed   | payment:01a10029 | Smoke A4 |
+| 2026-10-03 05:08:23.939635+00 | inventory.reversal | sale:01a10029    | Smoke A4 |
++-------------------------------+--------------------+------------------+----------+

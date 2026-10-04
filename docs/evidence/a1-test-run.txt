@@ -1,0 +1,145 @@
+PHPUnit 12.5.37 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.3.6
+Configuration: /home/claude/dgway-backend/phpunit.xml
+
+...............................................................  63 / 102 ( 61%)
+.......................................                         102 / 102 (100%)
+
+Time: 00:03.074, Memory: 54.50 MB
+
+Actor (Tests\Unit\Domain\Shared\Actor)
+ ✔ Operator actor
+ ✔ System actor
+ ✔ Operator id must be uuid
+
+Audit Log (Tests\Feature\Foundation\AuditLog)
+ ✔ Records actor timestamp business date and change
+ ✔ Audit rows cannot be updated
+ ✔ Audit rows cannot be deleted
+
+Authentication Api (Tests\Feature\Foundation\AuthenticationApi)
+ ✔ Password is stored hashed never plaintext
+ ✔ Login returns bearer token and operator without secrets
+ ✔ Wrong password is rejected and audited
+ ✔ Unknown email gets same error as wrong password
+ ✔ Inactive operator cannot login
+ ✔ Validation errors use the error envelope
+ ✔ Protected endpoint requires token
+ ✔ Me and logout revokes token
+ ✔ Deactivated operator token stops working immediately
+ ✔ Expired token is rejected
+ ✔ Login is rate limited
+ ✔ Health endpoint reports database and business date
+ ✔ Unknown api route returns json 404
+
+Business Date (Tests\Unit\Domain\Shared\BusinessDate)
+ ✔ Early morning wib belongs to the local day not the utc day
+ ✔ Late evening wib stays on same local day
+ ✔ Compact form for document numbers
+ ✔ Invalid dates rejected
+ ✔ Comparison and arithmetic
+
+Create Operator Command (Tests\Feature\Foundation\CreateOperatorCommand)
+ ✔ Creates owner with hashed password and audit
+ ✔ Rejects short password
+ ✔ Rejects duplicate email
+
+Database Schema (Tests\Feature\Foundation\DatabaseSchema)
+ ✔ Connection is postgresql in utc
+ ✔ Foundation tables exist
+ ✔ Primary keys are uuid
+ ✔ Timestamps are timezone aware
+ ✔ Uom reference data is present
+ ✔ Uom precision check constraint
+ ✔ User role check constraint rejects unknown roles
+ ✔ User email must be lowercase
+ ✔ Append only guard function exists
+
+Decimal (Tests\Unit\Domain\Shared\Decimal)
+ ✔ Classic float error does not happen
+ ✔ Division rounds half up at requested scale
+ ✔ Division by zero is a domain error
+ ✔ Rejects non decimal strings with data set "empty"
+ ✔ Rejects non decimal strings with data set "letters"
+ ✔ Rejects non decimal strings with data set "comma decimal"
+ ✔ Rejects non decimal strings with data set "exponent"
+ ✔ Rejects non decimal strings with data set "thousand separator"
+ ✔ Rejects non decimal strings with data set "leading dot"
+ ✔ Float input is rejected by the type system
+ ✔ To fixed pads and rounds
+
+Document Number (Tests\Unit\Domain\Shared\DocumentNumber)
+ ✔ Batch code format from the brief
+ ✔ Prefix is not locked to eggs
+ ✔ Sequence grows past 999 instead of overflowing
+ ✔ Round trip parse
+ ✔ Invalid prefix rejected
+ ✔ Sequence must start at one
+ ✔ Unparseable value rejected
+
+Document Number Generator (Tests\Feature\Foundation\DocumentNumberGenerator)
+ ✔ Sequential numbers per prefix and day
+ ✔ Rolled back transaction releases the number
+ ✔ Must be called inside a transaction
+
+Idempotency (Tests\Feature\Foundation\Idempotency)
+ ✔ Retry with same key returns stored result without re executing
+ ✔ Same key different payload is rejected
+ ✔ Keys are scoped per operator
+ ✔ Failed attempt leaves no key and retry executes
+ ✔ Concurrent request with same key waits instead of duplicating
+ ✔ Http retry returns same response and flags replay
+
+Idempotent Command Executor (Tests\Unit\Application\IdempotentCommandExecutor)
+ ✔ Same key and payload executes once and replays result
+ ✔ Payload key order does not matter
+ ✔ Reusing key with different payload is rejected
+ ✔ Failed command does not consume the key
+ ✔ Key format is validated
+
+Layer Dependency (Tests\Architecture\LayerDependency)
+ ✔ Layer does not depend on forbidden namespaces with data set "Domain is framework-free"
+ ✔ Layer does not depend on forbidden namespaces with data set "Application does not know adapters or Laravel"
+ ✔ Layer does not depend on forbidden namespaces with data set "Infrastructure does not depend on HTTP"
+ ✔ Controllers do not touch the database directly
+
+Money (Tests\Unit\Domain\Shared\Money)
+ ✔ Defaults to idr with four decimal storage
+ ✔ Line total price times quantity is exact
+ ✔ Fractional quantity line total
+ ✔ Effective hpp per sellable kg from yield
+ ✔ Receivable after partial payment
+ ✔ Rounding to whole rupiah is explicit and half up
+ ✔ Currency mismatch is rejected
+ ✔ More than four decimals is rejected not silently rounded
+ ✔ Assert non negative
+ ✔ Comparisons and immutability
+
+Quantity (Tests\Unit\Domain\Shared\Quantity)
+ ✔ Kg quantity storage and json
+ ✔ Received minus accepted equals rejected
+ ✔ Partial fulfillment remaining quantity
+ ✔ Kg allows gram precision
+ ✔ Kg rejects sub gram precision
+ ✔ Pcs rejects fractions
+ ✔ Pcs accepts whole number written with trailing zeros
+ ✔ Units are never mixed implicitly
+ ✔ Assert positive rejects zero
+ ✔ Negative quantity allowed as value but guarded
+ ✔ Comparisons
+
+Transaction Boundary (Tests\Feature\Foundation\TransactionBoundary)
+ ✔ Successful unit of work commits all writes
+ ✔ Failure mid unit of work rolls back every write
+ ✔ Nested run joins outer transaction
+ ✔ Failure in nested work rolls back the whole outer unit
+ ✔ Database constraint violation rolls back prior writes
+
+Uom (Tests\Unit\Domain\Shared\Uom)
+ ✔ Baseline units
+ ✔ New units can be defined without code changes
+ ✔ Invalid code rejected
+ ✔ Precision bounds
+
+OK (102 tests, 270 assertions)

@@ -1,0 +1,16 @@
+{
+    "data": {
+        "business_name": "DG WAY",
+        "business_subtitle": "Supply & Distribution",
+        "address": null,
+        "phone": null,
+        "footer_text": null,
+        "receipt_width_mm": 80,
+        "supported_receipt_widths_mm": [
+            58,
+            80
+        ],
+        "version": 1,
+        "is_default": true
+    }
+}

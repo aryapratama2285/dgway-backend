@@ -1,0 +1,23 @@
+## A3 hardening tests run BEFORE the fixes (expected failures: cancel ignored expected_version; balances not paged)
+PHPUnit 12.5.37 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.3.6
+Configuration: /home/claude/dgway-backend/phpunit.xml
+
+Time: 00:03.564, Memory: 54.50 MB
+
+There were 2 failures:
+
+1) Tests\Feature\Inventory\A3HardeningTest::test_stale_expected_version_on_cancel_is_rejected
+Expected response status code [409] but received 200.
+Failed asserting that 200 is identical to 409.
+
+/home/claude/dgway-backend/tests/Feature/Inventory/A3HardeningTest.php:42
+
+2) Tests\Feature\Inventory\A3HardeningTest::test_balances_are_paged
+Failed asserting that actual size 4 matches expected size 2.
+
+/home/claude/dgway-backend/tests/Feature/Inventory/A3HardeningTest.php:117
+
+FAILURES!
+Tests: 8, Assertions: 109, Failures: 2.

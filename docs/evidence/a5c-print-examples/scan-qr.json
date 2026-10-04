@@ -1,0 +1,24 @@
+{
+    "data": {
+        "type": "LOT",
+        "id": "01a101be-3362-71ff-9198-8b13223a7be4",
+        "matched_by": "QR",
+        "display": {
+            "title": "LOT-261003-001",
+            "subtitle": "TELUR-STD \u00b7 Telur Ayam Standar",
+            "lot_number": "LOT-261003-001",
+            "origin": "RECEIPT",
+            "sku": "TELUR-STD",
+            "product_name": "Telur Ayam Standar",
+            "status": "ACTIVE",
+            "available": {
+                "value": "60.0000",
+                "uom": "KG"
+            }
+        },
+        "links": {
+            "detail": "/api/v1/lots/01a101be-3362-71ff-9198-8b13223a7be4",
+            "label": "/api/v1/lots/01a101be-3362-71ff-9198-8b13223a7be4/label"
+        }
+    }
+}
