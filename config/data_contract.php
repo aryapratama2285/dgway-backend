@@ -97,7 +97,10 @@ return [
         'stock_lot_balances' => ['context' => 'Inventory', 'aggregate' => 'LotBalance', 'kind' => 'projection', 'migration' => 'rebuild'],
         'inventory_operations' => ['context' => 'Inventory', 'aggregate' => 'InventoryOperation', 'kind' => 'append_only', 'migration' => 'preserve', 'business_key' => 'number',
             'fingerprint' => ['id', 'number', 'operation_type', 'node_id', 'product_id', 'target_product_id', 'quantity', 'uom_code', 'from_bucket',
-                'adjustment_direction', 'reason', 'business_date', 'occurred_at', 'actor_user_id']],
+                'adjustment_direction', 'reason', 'business_date', 'occurred_at', 'actor_user_id'],
+            'fingerprint_additions' => ['f3' => ['reason_code', 'reference_text', 'counted_quantity', 'system_quantity']]],
+        'reorder_points' => ['context' => 'Inventory', 'aggregate' => 'ReorderPoint', 'kind' => 'master', 'migration' => 'preserve',
+            'fingerprint' => ['id', 'product_id', 'node_id', 'min_quantity', 'created_at']],
         'stock_balances' => ['context' => 'Inventory', 'aggregate' => 'StockBalance', 'kind' => 'projection', 'migration' => 'rebuild'],
 
         // ── Sales ────────────────────────────────────────────────────────

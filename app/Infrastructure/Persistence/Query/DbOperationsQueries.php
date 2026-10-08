@@ -120,6 +120,11 @@ final class DbOperationsQueries implements OperationsQueries
                                         GROUP BY product_id, node_id HAVING sum(signed_quantity) > 0) x
         SQL, [$date])->n;
         $lots = (int) $this->db->selectOne('SELECT count(DISTINCT lot_id) AS n FROM stock_lot_balances WHERE quantity > 0')->n;
+        // F3: product × node positions at or below their reorder point NOW (same rule as GET /inventory/stock?low_stock=1)
+        $lowStock = (int) $this->db->selectOne('SELECT count(*) AS n FROM reorder_points rp
+            JOIN products p ON p.id = rp.product_id JOIN nodes n ON n.id = rp.node_id
+            LEFT JOIN stock_balances b ON b.product_id = rp.product_id AND b.node_id = rp.node_id AND b.bucket = \'AVAILABLE\'
+            WHERE '.DbInventoryQueries::lowStockCondition('COALESCE(b.quantity, 0)'))->n;
 
         return [
             'as_of' => $date,
@@ -129,6 +134,8 @@ final class DbOperationsQueries implements OperationsQueries
             'sold_quantity_on_date' => (string) $day->sold,
             // lot balances are a current projection (not dated): active lots NOW
             'active_lots_now' => $lots,
+            // F3: count of product × node POSITIONS (not distinct products) at/below their reorder point now
+            'low_stock_now' => $lowStock,
         ];
     }
 
@@ -157,6 +164,12 @@ final class DbOperationsQueries implements OperationsQueries
               LEFT JOIN customer_returns cr ON m.source_document_type = 'customer_return' AND cr.id = m.source_document_id
              WHERE m.business_date = :d AND m.movement_type = 'LOSS'
              GROUP BY m.source_document_id
+            UNION ALL
+            SELECT CASE o.operation_type WHEN 'INTERNAL_CONSUMPTION' THEN 'INTERNAL_CONSUMPTION' ELSE 'INVENTORY_ADJUSTMENT' END,
+                   o.occurred_at, 'inventory_operation', o.id, o.number, NULL, o.quantity, NULL, NULL, NULL, o.actor_user_id,
+                   concat_ws(' ', CASE o.adjustment_direction WHEN 1 THEN 'IN' WHEN -1 THEN 'OUT' END, o.reason_code)
+              FROM inventory_operations o
+             WHERE o.business_date = :d AND o.operation_type IN ('INTERNAL_CONSUMPTION', 'ADJUSTMENT')
             UNION ALL
             SELECT 'SALE', s.confirmed_at, 'sale', s.id, s.number, s.grand_total, (SELECT sum(quantity) FROM sale_lines WHERE sale_id = s.id),
                    bp.code, bp.name, NULL, s.confirmed_by, s.status

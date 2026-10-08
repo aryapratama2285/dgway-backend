@@ -26,4 +26,31 @@ interface InventoryQueries
 
     /** @return Page<array<string, mixed>> */
     public function movements(array $filters, PageRequest $page): Page;
+
+    /**
+     * F3 inventory list: one row per product × node over the existing projection
+     * (stock_balances) and master data — no stored totals. Filters: node_id,
+     * product_id, q (name/SKU), classification, low_stock, include_zero.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Page<array<string, mixed>>
+     */
+    public function stock(array $filters, PageRequest $page): Page;
+
+    /**
+     * F3 inventory operation history (consumption, adjustment, loss …), newest first.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Page<array<string, mixed>>
+     */
+    public function operations(array $filters, PageRequest $page): Page;
+
+    /** One operation with the movements (and FIFO lots) it produced. @return array<string, mixed> */
+    public function operation(string $id): array;
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Page<array<string, mixed>>
+     */
+    public function reorderPoints(array $filters, PageRequest $page): Page;
 }

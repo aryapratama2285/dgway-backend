@@ -105,6 +105,10 @@ final class ProcurementResources
             'from_bucket' => $op->fromBucket->value,
             'direction' => $op->adjustmentDirection?->name,
             'reason' => $op->reason,
+            'reason_code' => $op->reasonCode,
+            'reference_text' => $op->referenceText,
+            'counted_quantity' => $op->countedQuantity?->toStorage(),
+            'system_quantity' => $op->systemQuantity?->toStorage(),
             'business_date' => $op->businessDate->toString(),
             'occurred_at' => $op->occurredAt->format(DATE_ATOM),
         ];

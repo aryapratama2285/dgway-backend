@@ -12,6 +12,8 @@ use App\Domain\Catalog\Product;
 use App\Domain\Catalog\ProductClassification;
 use App\Domain\Catalog\ProductCategoryRepository;
 use App\Domain\Catalog\ProductRepository;
+use App\Domain\Inventory\ReorderPointRepository;
+use App\Domain\Shared\Exception\InvariantViolation;
 use App\Domain\Shared\Identity\Actor;
 use App\Domain\Shared\Identity\Id;
 use App\Domain\Shared\Text\Name;
@@ -30,6 +32,7 @@ final class UpdateProduct
         private readonly ProductUsageChecker $usage,
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
+        private readonly ReorderPointRepository $reorderPoints,
     ) {
     }
 
@@ -52,6 +55,15 @@ final class UpdateProduct
             }
             if ($patch->has('base_uom')) {
                 $uom = $this->uoms->activeOrFail((string) $patch->string('base_uom'));
+                // F3: a reorder point is expressed in the base UOM; changing the unit
+                // would silently change what the threshold means.
+                if ($uom->code !== $product->baseUom()->code && $this->reorderPoints->hasActiveFor($product->id())) {
+                    throw InvariantViolation::because(
+                        'BASE_UOM_LOCKED_BY_REORDER_POINT',
+                        "{$product->sku()->value} has an active reorder point in {$product->baseUom()->code}. Clear it before changing the base UOM.",
+                        ['field' => 'base_uom'],
+                    );
+                }
                 $changed = $product->changeBaseUom($uom, $this->usage->isUsedInTransactions($product->id())) || $changed;
             }
             if ($patch->has('classification')) {

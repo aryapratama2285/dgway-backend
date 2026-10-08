@@ -21,4 +21,6 @@ enum Permission: string
 
     /** A5-C: change the business identity printed on documents (not printer hardware). */
     case MANAGE_PRINT_SETTINGS = 'settings.manage_print';
+    /** F3: correct stock through an ADJUSTMENT (delta or counted mode). Not needed for consumption or loss. */
+    case ADJUST_STOCK = 'inventory.adjust';
 }

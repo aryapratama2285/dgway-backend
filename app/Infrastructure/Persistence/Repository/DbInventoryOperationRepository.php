@@ -32,6 +32,10 @@ final class DbInventoryOperationRepository implements InventoryOperationReposito
             'business_date' => $op->businessDate->toString(),
             'occurred_at' => $op->occurredAt->format('Y-m-d H:i:s.uP'),
             'actor_user_id' => $actorUserId,
+            'reason_code' => $op->reasonCode,
+            'reference_text' => $op->referenceText,
+            'counted_quantity' => $op->countedQuantity?->toStorage(),
+            'system_quantity' => $op->systemQuantity?->toStorage(),
         ]);
     }
 }

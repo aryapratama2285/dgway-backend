@@ -36,6 +36,7 @@
 | `products` | Catalog | Product | master | preserve | sku |
 | `purchase_order_lines` | Procurement | PurchaseOrder | line | preserve | — |
 | `purchase_orders` | Procurement | PurchaseOrder | document | preserve | number |
+| `reorder_points` | Inventory | ReorderPoint | master | preserve | — |
 | `sale_lines` | Sales | Sale | line | preserve | — |
 | `sales` | Sales | Sale | document | preserve | number |
 | `stock_balances` | Inventory | StockBalance | projection | rebuild | — |
@@ -86,6 +87,9 @@
 | `purchase_orders` | created_by | `users` | Procurement → Identity | RESTRICT |
 | `purchase_orders` | node_id | `nodes` | Procurement → Network | RESTRICT |
 | `purchase_orders` | supplier_id | `business_partners` | Procurement → Partner | RESTRICT |
+| `reorder_points` | node_id | `nodes` | Inventory → Network | RESTRICT |
+| `reorder_points` | product_id | `products` | Inventory → Catalog | RESTRICT |
+| `reorder_points` | updated_by | `users` | Inventory → Identity | RESTRICT |
 | `sale_lines` | product_id | `products` | Sales → Catalog | RESTRICT |
 | `sale_lines` | uom_code | `uoms` | Sales → Catalog | RESTRICT |
 | `sales` | confirmed_by | `users` | Sales → Identity | RESTRICT |
@@ -558,14 +562,21 @@ Owner **Inventory** · aggregate InventoryOperation · kind **append_only** · m
 | occurred_at | timestamp(0) with time zone | no |  |
 | actor_user_id | uuid | yes |  |
 | created_at | timestamp(0) with time zone | no | CURRENT_TIMESTAMP |
+| reason_code | character varying(32) | yes |  |
+| reference_text | character varying(60) | yes |  |
+| counted_quantity | numeric(18,4) | yes |  |
+| system_quantity | numeric(18,4) | yes |  |
 
 Constraints:
 - CHECK `invop_adjustment_dir_check`: `CHECK (((((operation_type)::text = 'ADJUSTMENT'::text) = (adjustment_direction IS NOT NULL)) AND ((adjustment_direction IS NULL) OR (adjustment_direction = ANY (ARRAY['-1'::integer, 1])))))`
 - CHECK `invop_bucket_check`: `CHECK (((from_bucket)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'QUARANTINE'::character varying, 'RETURN_PENDING'::character varying])::text[])))`
+- CHECK `invop_count_check`: `CHECK ((((counted_quantity IS NULL) AND (system_quantity IS NULL)) OR (((operation_type)::text = 'ADJUSTMENT'::text) AND (counted_quantity IS NOT NULL) AND (system_quantity IS NOT NULL) AND (counted_quantity >= (0)::numeric) AND (system_quantity >= (0)::numeric))))`
 - CHECK `invop_quantity_check`: `CHECK ((quantity > (0)::numeric))`
 - CHECK `invop_reason_check`: `CHECK ((length(TRIM(BOTH FROM reason)) > 0))`
+- CHECK `invop_reason_code_check`: `CHECK (((((operation_type)::text = 'INTERNAL_CONSUMPTION'::text) AND (reason_code IS NOT NULL) AND ((reason_code)::text = ANY ((ARRAY['PACKING'::character varying, 'LABELING'::character varying, 'DELIVERY'::character varying, 'ADMIN'::character varying, 'SAMPLE'::character varying, 'OTHER'::character varying])::text[]))) OR (((operation_type)::text = 'ADJUSTMENT'::text) AND ((reason_code IS NULL) OR ((reason_code)::text = ANY ((ARRAY['COUNT_CORRECTION'::character varying, 'FOUND_STOCK'::character varying, 'SHRINKAGE'::character varying, 'OTHER'::character varying])::text[])))) OR (((operation_type)::text <> ALL ((ARRAY['INTERNAL_CONSUMPTION'::character varying, 'ADJUSTMENT'::character varying])::text[])) AND (reason_code IS NULL))))`
+- CHECK `invop_reference_check`: `CHECK (((reference_text IS NULL) OR (((operation_type)::text = 'INTERNAL_CONSUMPTION'::text) AND (length(TRIM(BOTH FROM reference_text)) > 0))))`
 - CHECK `invop_regrade_target_check`: `CHECK ((((operation_type)::text = 'REGRADE'::text) = (target_product_id IS NOT NULL)))`
-- CHECK `invop_type_check`: `CHECK (((operation_type)::text = ANY ((ARRAY['LOSS'::character varying, 'REGRADE'::character varying, 'RECOVERY'::character varying, 'SUPPLIER_RETURN'::character varying, 'ADJUSTMENT'::character varying])::text[])))`
+- CHECK `invop_type_check`: `CHECK (((operation_type)::text = ANY ((ARRAY['LOSS'::character varying, 'REGRADE'::character varying, 'RECOVERY'::character varying, 'SUPPLIER_RETURN'::character varying, 'ADJUSTMENT'::character varying, 'INTERNAL_CONSUMPTION'::character varying])::text[])))`
 - FK `inventory_operations_actor_user_id_foreign`: `FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE RESTRICT`
 - FK `inventory_operations_node_id_foreign`: `FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE RESTRICT`
 - FK `inventory_operations_product_id_foreign`: `FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT`
@@ -849,6 +860,7 @@ Constraints:
 - UNIQUE `products_sku_unique`: `UNIQUE (sku)`
 
 Triggers:
+- `products_base_uom_reorder_guard` → `dgway_guard_base_uom_vs_reorder_points()` (BEFORE UPDATE OF base_uom_code)
 - `products_identity_guard` → `dgway_guard_identity()` (BEFORE DELETE OR UPDATE)
 
 Indexes:
@@ -932,6 +944,38 @@ Indexes:
 - `purchase_orders_pkey`: `UNIQUE btree (id)`
 - `purchase_orders_status_business_date_index`: `btree (status, business_date)`
 - `purchase_orders_supplier_id_business_date_index`: `btree (supplier_id, business_date)`
+
+## `reorder_points`
+
+Owner **Inventory** · aggregate ReorderPoint · kind **master** · migration **preserve**
+
+| Column | Type | Null | Default / generated |
+| --- | --- | --- | --- |
+| id | uuid | no |  |
+| product_id | uuid | no |  |
+| node_id | uuid | no |  |
+| min_quantity | numeric(18,4) | yes |  |
+| version | integer | no | 1 |
+| updated_by | uuid | yes |  |
+| created_at | timestamp(0) with time zone | no | CURRENT_TIMESTAMP |
+| updated_at | timestamp(0) with time zone | no | CURRENT_TIMESTAMP |
+
+Constraints:
+- CHECK `rp_min_quantity_check`: `CHECK (((min_quantity IS NULL) OR (min_quantity >= (0)::numeric)))`
+- CHECK `rp_version_check`: `CHECK ((version >= 1))`
+- FK `reorder_points_node_id_foreign`: `FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE RESTRICT`
+- FK `reorder_points_product_id_foreign`: `FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT`
+- FK `reorder_points_updated_by_foreign`: `FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE RESTRICT`
+- PK `reorder_points_pkey`: `PRIMARY KEY (id)`
+- UNIQUE `reorder_points_product_node_unique`: `UNIQUE (product_id, node_id)`
+
+Triggers:
+- `reorder_points_identity_guard` → `dgway_guard_identity()` (BEFORE DELETE OR UPDATE)
+
+Indexes:
+- `reorder_points_node_id_index`: `btree (node_id)`
+- `reorder_points_pkey`: `UNIQUE btree (id)`
+- `reorder_points_product_node_unique`: `UNIQUE btree (product_id, node_id)`
 
 ## `sale_lines`
 
@@ -1131,8 +1175,8 @@ Constraints:
 - CHECK `sm_lot_required_check`: `CHECK (((lot_id IS NOT NULL) OR (created_at < dgway_lot_cutover())))`
 - CHECK `sm_quantity_check`: `CHECK ((quantity > (0)::numeric))`
 - CHECK `sm_reversal_link_check`: `CHECK ((((movement_type)::text = 'REVERSAL'::text) = (reverses_movement_id IS NOT NULL)))`
-- CHECK `sm_type_check`: `CHECK (((movement_type)::text = ANY ((ARRAY['RECEIPT'::character varying, 'SALE'::character varying, 'CUSTOMER_RETURN'::character varying, 'SUPPLIER_RETURN'::character varying, 'TRANSFER_OUT'::character varying, 'TRANSFER_IN'::character varying, 'LOSS'::character varying, 'RECOVERY'::character varying, 'REGRADE_OUT'::character varying, 'REGRADE_IN'::character varying, 'ADJUSTMENT_IN'::character varying, 'ADJUSTMENT_OUT'::character varying, 'REVERSAL'::character varying])::text[])))`
-- CHECK `sm_type_direction_check`: `CHECK (((((movement_type)::text = ANY ((ARRAY['RECEIPT'::character varying, 'CUSTOMER_RETURN'::character varying, 'TRANSFER_IN'::character varying, 'REGRADE_IN'::character varying, 'ADJUSTMENT_IN'::character varying])::text[])) AND (direction = 1)) OR (((movement_type)::text = ANY ((ARRAY['SALE'::character varying, 'SUPPLIER_RETURN'::character varying, 'TRANSFER_OUT'::character varying, 'LOSS'::character varying, 'REGRADE_OUT'::character varying, 'ADJUSTMENT_OUT'::character varying])::text[])) AND (direction = '-1'::integer)) OR ((movement_type)::text = ANY ((ARRAY['RECOVERY'::character varying, 'REVERSAL'::character varying])::text[]))))`
+- CHECK `sm_type_check`: `CHECK (((movement_type)::text = ANY ((ARRAY['RECEIPT'::character varying, 'SALE'::character varying, 'CUSTOMER_RETURN'::character varying, 'SUPPLIER_RETURN'::character varying, 'TRANSFER_OUT'::character varying, 'TRANSFER_IN'::character varying, 'LOSS'::character varying, 'RECOVERY'::character varying, 'REGRADE_OUT'::character varying, 'REGRADE_IN'::character varying, 'ADJUSTMENT_IN'::character varying, 'ADJUSTMENT_OUT'::character varying, 'REVERSAL'::character varying, 'INTERNAL_CONSUMPTION'::character varying])::text[])))`
+- CHECK `sm_type_direction_check`: `CHECK (((((movement_type)::text = ANY ((ARRAY['RECEIPT'::character varying, 'CUSTOMER_RETURN'::character varying, 'TRANSFER_IN'::character varying, 'REGRADE_IN'::character varying, 'ADJUSTMENT_IN'::character varying])::text[])) AND (direction = 1)) OR (((movement_type)::text = ANY ((ARRAY['SALE'::character varying, 'SUPPLIER_RETURN'::character varying, 'TRANSFER_OUT'::character varying, 'LOSS'::character varying, 'REGRADE_OUT'::character varying, 'ADJUSTMENT_OUT'::character varying, 'INTERNAL_CONSUMPTION'::character varying])::text[])) AND (direction = '-1'::integer)) OR ((movement_type)::text = ANY ((ARRAY['RECOVERY'::character varying, 'REVERSAL'::character varying])::text[]))))`
 - FK `stock_movements_actor_user_id_foreign`: `FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE RESTRICT`
 - FK `stock_movements_lot_id_foreign`: `FOREIGN KEY (lot_id) REFERENCES inventory_lots(id) ON DELETE RESTRICT`
 - FK `stock_movements_node_id_foreign`: `FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE RESTRICT`

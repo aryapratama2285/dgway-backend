@@ -24,7 +24,9 @@ use App\Infrastructure\Persistence\Repository\DbSaleRepository;
 use App\Domain\Inventory\DisallowNegativeStock;
 use App\Domain\Inventory\InventoryOperationRepository;
 use App\Domain\Inventory\LotRepository;
+use App\Domain\Inventory\ReorderPointRepository;
 use App\Infrastructure\Persistence\Repository\DbLotRepository;
+use App\Infrastructure\Persistence\Repository\DbReorderPointRepository;
 use App\Domain\Inventory\NegativeStockPolicy;
 use App\Domain\Inventory\StockLedger;
 use App\Domain\Procurement\GoodsReceiptRepository;
@@ -138,6 +140,7 @@ final class DomainServiceProvider extends ServiceProvider
         $this->app->bind(StockLedger::class, DbStockLedger::class);
         $this->app->bind(InventoryOperationRepository::class, DbInventoryOperationRepository::class);
         $this->app->bind(LotRepository::class, DbLotRepository::class);
+        $this->app->bind(ReorderPointRepository::class, DbReorderPointRepository::class);
         // Default policy: stock never goes below zero (A3 §17).
         $this->app->bind(NegativeStockPolicy::class, DisallowNegativeStock::class);
         $this->app->bind(InventoryQueries::class, DbInventoryQueries::class);

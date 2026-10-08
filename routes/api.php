@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Inventory\InventoryController;
 use App\Http\Controllers\Api\V1\Inventory\LotController;
+use App\Http\Controllers\Api\V1\Inventory\ReorderPointController;
 use App\Http\Controllers\Api\V1\MasterData\BusinessPartnerController;
 use App\Http\Controllers\Api\V1\Operations\OperationsController;
 use App\Http\Controllers\Api\V1\Printing\PrintController;
@@ -81,6 +82,12 @@ Route::prefix('v1')->group(function (): void {
         Route::get('inventory/integrity', [InventoryController::class, 'integrity']);
         Route::get('inventory/lot-balances', [LotController::class, 'balances']);
 
+        // F3: inventory list, operation history, low-stock thresholds (reads).
+        Route::get('inventory/stock', [InventoryController::class, 'stock']);
+        Route::get('inventory/operations', [InventoryController::class, 'operations']);
+        Route::get('inventory/operations/{id}', [InventoryController::class, 'operation'])->whereUuid('id');
+        Route::get('inventory/reorder-points', [ReorderPointController::class, 'index']);
+
         // Lots (A5-B): {lot} = UUID or lot number.
         Route::get('lots', [LotController::class, 'index']);
         Route::get('lots/{lot}', [LotController::class, 'show'])->where('lot', '[A-Za-z0-9-]+');
@@ -152,6 +159,9 @@ Route::prefix('v1')->group(function (): void {
             Route::post('inventory/recoveries', [InventoryController::class, 'recovery']);
             Route::post('inventory/supplier-returns', [InventoryController::class, 'supplierReturn']);
             Route::post('inventory/adjustments', [InventoryController::class, 'adjustment']);
+            // F3: internal consumption (own use of packaging/consumables) and low-stock thresholds.
+            Route::post('inventory/consumptions', [InventoryController::class, 'consumption']);
+            Route::post('inventory/reorder-points', [ReorderPointController::class, 'store']);
 
             // Sales, payments, returns (A4). A confirmed sale is never edited:
             // corrections are returns, payment reversals or a sale reversal.

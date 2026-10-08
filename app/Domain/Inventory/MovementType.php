@@ -27,13 +27,15 @@ enum MovementType: string
     case ADJUSTMENT_IN = 'ADJUSTMENT_IN';
     case ADJUSTMENT_OUT = 'ADJUSTMENT_OUT';
     case REVERSAL = 'REVERSAL';
+    /** F3: material consumed by DG Way itself (packaging, labels, tape …). Not a loss, not a sale. */
+    case INTERNAL_CONSUMPTION = 'INTERNAL_CONSUMPTION';
 
     /** @return list<Direction> */
     public function allowedDirections(): array
     {
         return match ($this) {
             self::RECEIPT, self::CUSTOMER_RETURN, self::TRANSFER_IN, self::REGRADE_IN, self::ADJUSTMENT_IN => [Direction::IN],
-            self::SALE, self::SUPPLIER_RETURN, self::TRANSFER_OUT, self::LOSS, self::REGRADE_OUT, self::ADJUSTMENT_OUT => [Direction::OUT],
+            self::SALE, self::SUPPLIER_RETURN, self::TRANSFER_OUT, self::LOSS, self::REGRADE_OUT, self::ADJUSTMENT_OUT, self::INTERNAL_CONSUMPTION => [Direction::OUT],
             // RECOVERY moves stock between buckets (out of RETURN_PENDING/QUARANTINE, into AVAILABLE).
             // REVERSAL mirrors the movement it reverses.
             self::RECOVERY, self::REVERSAL => [Direction::IN, Direction::OUT],

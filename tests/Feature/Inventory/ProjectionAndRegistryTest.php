@@ -91,8 +91,12 @@ final class ProjectionAndRegistryTest extends InventoryTestCase
             WHERE c.contype = 'f' AND c.confrelid = 'products'::regclass
         SQL))->map(fn ($r) => "{$r->tbl}.{$r->col}")->sort()->values()->all();
 
-        $registered = collect(config('dgway.product_reference_tables'))->sort()->values()->all();
-        $this->assertSame($fks, $registered, 'A table that references products must be added to dgway.product_reference_tables');
+        // F3: configuration tables (reorder points) are registered separately; a key may never be in both lists.
+        $transactional = (array) config('dgway.product_reference_tables');
+        $configuration = (array) config('dgway.product_configuration_tables');
+        $this->assertSame([], array_values(array_intersect($transactional, $configuration)), 'a product reference is either transactional or configuration');
+        $registered = collect([...$transactional, ...$configuration])->sort()->values()->all();
+        $this->assertSame($fks, $registered, 'A table that references products must be added to dgway.product_reference_tables (or, for configuration, dgway.product_configuration_tables)');
     }
 
     public function test_product_uom_is_locked_once_stock_moved(): void

@@ -12,6 +12,7 @@ enum InventoryOperationType: string
     case RECOVERY = 'RECOVERY';               // RETURN_PENDING/QUARANTINE → AVAILABLE
     case SUPPLIER_RETURN = 'SUPPLIER_RETURN'; // RETURN_PENDING → shipped back to supplier
     case ADJUSTMENT = 'ADJUSTMENT';           // stock-count correction, IN or OUT, reason required
+    case INTERNAL_CONSUMPTION = 'INTERNAL_CONSUMPTION'; // F3: DG Way used its own material (AVAILABLE → consumed)
 
     public function auditAction(): string
     {
@@ -21,6 +22,7 @@ enum InventoryOperationType: string
             self::RECOVERY => 'inventory.recovery',
             self::SUPPLIER_RETURN => 'inventory.return_to_supplier',
             self::ADJUSTMENT => 'inventory.adjustment',
+            self::INTERNAL_CONSUMPTION => 'inventory.internal_consumption',
         };
     }
 }

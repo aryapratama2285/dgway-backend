@@ -30,7 +30,7 @@ sales). `stock_balances` is a projection that can be thrown away and rebuilt.
 ### Movement type ↔ direction (DB CHECK `sm_type_direction_check`)
 
 IN only: RECEIPT, CUSTOMER_RETURN, TRANSFER_IN, REGRADE_IN, ADJUSTMENT_IN ·
-OUT only: SALE, SUPPLIER_RETURN, TRANSFER_OUT, LOSS, REGRADE_OUT, ADJUSTMENT_OUT ·
+OUT only: SALE, SUPPLIER_RETURN, TRANSFER_OUT, LOSS, REGRADE_OUT, ADJUSTMENT_OUT, INTERNAL_CONSUMPTION (F3) ·
 both: RECOVERY (out of a non-sellable bucket, into AVAILABLE), REVERSAL (mirror of its original).
 Adding a type = one enum case + one migration extending the CHECK.
 
@@ -164,3 +164,41 @@ The ledger is always in the product's **base UOM**. A request in another unit
 is rejected with `UOM_NOT_BASE` (no implicit conversion). Regrade targets must
 have the same base UOM. Product-specific conversions (e.g. tray → kg) are a
 future extension; when added, conversion happens before the ledger.
+
+
+## 10. F3 — internal consumption, stock opname, reorder points
+
+- **INTERNAL_CONSUMPTION** (operation and movement type, OUT only, from AVAILABLE):
+  DG Way used its own material (plastic, labels, thermal paper, tape, raffia,
+  stretch film, disposable trays …). It is not a LOSS (damage) and not an
+  ADJUSTMENT (correction); the dashboard's `losses_on_date` is unaffected.
+  `reason_code` ∈ PACKING, LABELING, DELIVERY, ADMIN, SAMPLE, OTHER (required, DB CHECK),
+  optional notes (stored as `reason`) and `reference_text` (≤ 60, operational, no FK).
+  Lots are consumed FIFO by `LotAllocator` under the position lock, one movement per lot.
+- **Counted adjustment (stock opname):** `counted_quantity` → the server locks the
+  AVAILABLE position (`StockLedger::lockBalances`), reads the system quantity, posts
+  `counted − system` as ADJUSTMENT_IN (new ADJUSTMENT lot) or ADJUSTMENT_OUT (FIFO),
+  and stores `counted_quantity` + `system_quantity` on the operation (DB CHECK: both or neither,
+  ADJUSTMENT only). `expected_available` guards against a count made on stale figures
+  (409 `STOCK_CHANGED_SINCE_COUNT`). Adjustments need the `inventory.adjust` permission.
+- **Reorder points** (`reorder_points`, product × node): configuration, not stock.
+  `min_quantity` in the product's base UOM (the unit is derived, never stored; the
+  base UOM cannot change while an active threshold exists — application check + trigger
+  `products_base_uom_reorder_guard`). Low stock = AVAILABLE ≤ min_quantity; null = disabled.
+- Packaging / consumables are ordinary inventory: receipts, lots, consumption, loss,
+  counted adjustment and history work exactly like for sellable goods. Classification
+  (SELLABLE / PACKAGING / CONSUMABLE) is context, never a permission. Reusable equipment
+  (baskets, scales, racks, printers, reusable trays, candling lamps) is NOT inventory:
+  it belongs to a future Asset Management domain. Borderline items follow their economic
+  behaviour (disposable cardboard tray = PACKAGING; reusable plastic tray = asset).
+
+### Costing traceability (for a future HPP / fulfillment-cost engine — not implemented)
+
+consumption movement → `stock_movements.lot_id` → `inventory_lots.goods_receipt_line_id`
+→ `goods_receipt_lines.unit_cost` (+ `goods_receipts.currency`; RECEIPT movements also carry
+`unit_cost`/`currency`). The quantity, base UOM, node, business date, actor, reason code,
+notes, INV number and correlation id are stored on every consumption. Nothing is copied or
+estimated: lots with origin ADJUSTMENT or LEGACY have **no** cost link and must be reported
+as *cost basis unknown*. Purchased stock with a known cost enters through receiving, never
+through an adjustment. Every row is append-only, so a later engine reads history and never
+rewrites it.

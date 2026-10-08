@@ -244,3 +244,18 @@ The "meaning" column is taken from the server message (‹…› = value filled 
 | `SCAN_CODE_UNKNOWN` | 404 | No lot/product/sale matches. Fixed message; the scanned text is never echoed and the response does not reveal which entity types were searched. |
 | `SCAN_CODE_AMBIGUOUS` | 409 | Text matches more than one entity type (e.g. a product SKU equal to a lot number). `details.candidate_types` (types only, no data). Scan the QR code instead — QR codes are never ambiguous. |
 | `ACCESS_DENIED` | 403 | Also for `PATCH /print/settings` without permission `settings.manage_print`. |
+
+## F3 additions (inventory operations, internal consumption, reorder points)
+
+| Code | HTTP | When |
+| --- | --- | --- |
+| `REASON_CODE_INVALID` | 422 | `reason_code` not allowed for the operation: internal consumption needs PACKING, LABELING, DELIVERY, ADMIN, SAMPLE or OTHER; an adjustment accepts COUNT_CORRECTION, FOUND_STOCK, SHRINKAGE, OTHER (or none). Usually caught first as `VALIDATION_FAILED`. |
+| `REFERENCE_TEXT_INVALID` | 422 | `reference_text` of a consumption longer than 60 characters (domain guard; usually `VALIDATION_FAILED` first). |
+| `ADJUSTMENT_NOT_REQUIRED` | 422 | Counted adjustment whose `counted_quantity` equals the AVAILABLE stock held by the system (`details.counted_quantity`, `details.system_quantity`). Nothing is written. |
+| `STOCK_CHANGED_SINCE_COUNT` | 409 | Counted adjustment with `expected_available` different from the AVAILABLE stock found under lock: stock moved since the operator counted. Reload and count again (`details.expected_available`, `details.current_available`). |
+| `COUNT_SNAPSHOT_INCOMPLETE`, `COUNT_SNAPSHOT_MISMATCH` | 422 | Internal guards of a counted adjustment (counted/system quantities must both be present and their difference must equal the posted delta). Never expected from a correct client — report as a bug. |
+| `BASE_UOM_LOCKED_BY_REORDER_POINT` | 422 | `PATCH /products/{id}` changes `base_uom` while the product has an active reorder point (the threshold is expressed in that unit). Clear the reorder point (`min_quantity: null`) first. Also enforced by a database trigger. |
+| `ACCESS_DENIED` | 403 | Also for `POST /inventory/adjustments` (both modes) by a role without `inventory.adjust`. |
+| `INSUFFICIENT_STOCK` | 409 | Also for `POST /inventory/consumptions` when the quantity exceeds AVAILABLE at the node (nothing written). |
+
+`INVENTORY_ADJUSTMENT` and `INTERNAL_CONSUMPTION` are activity-feed / operation **types** (data), not error codes.

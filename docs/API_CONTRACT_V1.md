@@ -134,6 +134,21 @@ Commands (Idempotency-Key): `POST /products`, `PATCH /products/{id}` (+`expected
 - `GET /lots/{id}/movements` (newest first; `legacy_unattributed` marks pre-A5-B rows), `GET /lots/{id}/lineage` → `{ ancestors[], descendants[] }`, `GET /lots/{id}/destinations` → per sale line `{ sale_id, sale_number, business_date, sale_status, customer|null, sold, reversed, returned, net, uom }` (FIFO order).
 - `GET /inventory/lot-balances?product_id&node_id&bucket&include_zero` — per lot × bucket in FIFO order.
 
+### 9.5a Inventory operations & internal consumption (F3)
+
+All quantities are decimal strings in the product's **base UOM** (`UOM_NOT_BASE` otherwise; product precision enforced). Stock never goes negative (409 `INSUFFICIENT_STOCK`); lots are consumed **FIFO automatically** (no lot parameter). Every command needs `Idempotency-Key`.
+
+- `POST /inventory/consumptions` `{ node_id, product_id, quantity, reason_code: PACKING|LABELING|DELIVERY|ADMIN|SAMPLE|OTHER, notes?, reference_text? (≤ 60), uom? }` → 201 operation `{ id, number (INV-…), type: "INTERNAL_CONSUMPTION", node_id, product_id, quantity, uom, from_bucket: "AVAILABLE", direction: null, reason, reason_code, reference_text, counted_quantity: null, system_quantity: null, business_date, occurred_at }`. DG Way used its own material: one `INTERNAL_CONSUMPTION` movement (OUT, AVAILABLE) per consumed lot. It is **not** a LOSS (dashboard `losses_on_date` is unaffected) and not an adjustment. `reason` = the notes, or the reason code when no notes are given. `reference_text` is an operational note (e.g. an order number), **not** an accounting link. Any classification may be consumed; classification is context, not a permission. Authorization = an active operator (same as loss).
+- `POST /inventory/adjustments` — two mutually exclusive modes, both need permission **`inventory.adjust`** (403 `ACCESS_DENIED`), `reason` required, `reason_code?` = COUNT_CORRECTION|FOUND_STOCK|SHRINKAGE|OTHER (damage = `POST /inventory/losses`):
+  - delta (A3, unchanged): `{ node_id, product_id, quantity, direction: IN|OUT, reason, reason_code?, uom? }`;
+  - **counted** (stock opname): `{ node_id, product_id, counted_quantity, expected_available?, reason, reason_code?, uom? }`. The server locks the AVAILABLE position, reads the system quantity, and posts `counted − system` as ADJUSTMENT IN (new ADJUSTMENT lot, cost basis unknown) or OUT (FIFO). 422 `ADJUSTMENT_NOT_REQUIRED` when equal; 409 `STOCK_CHANGED_SINCE_COUNT` when `expected_available` ≠ the locked system quantity. The response carries `counted_quantity`, `system_quantity`, `direction`, `quantity`.
+- `GET /inventory/operations?type=&product_id=&node_id=&reason_code=&date_from=&date_to=&page=` → newest first: operation fields + `product{ id, sku, name, classification }`, `node{ id, code, name }`, `actor_user_id`, `created_at`. `GET /inventory/operations/{id}` → + `movements[{ id, movement_type, product_id, bucket, direction, quantity, uom, lot{ id, number, origin }|null }]` (the FIFO lots used).
+- `GET /inventory/stock?node_id=&product_id=&q=&classification=SELLABLE|PACKAGING|CONSUMABLE&low_stock=&include_zero=&page=` → one row per product × stock-holding node, ordered by product name, SKU, node code: `{ product{ id, sku, name, classification, is_active }, node{ id, code, name }, uom{ code, precision }, available, quarantine, return_pending, on_hand, reorder_point|null, is_low_stock }`. A read model over `stock_balances` (projection) and master data. Default: positions holding stock or at/below their reorder point; `include_zero=1` (or `product_id`) also lists active products without stock.
+- Low stock: a reorder point is set (`null` = monitoring disabled), product active, node active with INVENTORY, and **AVAILABLE ≤ min_quantity**. Same rule for `low_stock=1` and dashboard `inventory.low_stock_now` (a count of product × node **positions**, not distinct products).
+- `GET /inventory/reorder-points?product_id=&node_id=&page=` → `{ id, product_id, node_id, min_quantity|null, uom (the product's base UOM, derived), version, updated_by, updated_at }`.
+- `POST /inventory/reorder-points` `{ product_id, node_id, min_quantity: "decimal"|null, expected_version? }` → 200 `{ id, product_id, node_id, min_quantity, uom, version }`. Upsert per product × node; `null` clears (row kept, version + 1); audited `inventory.reorder_point_set`; 409 `CONCURRENT_MODIFICATION` on a stale `expected_version`. A product's `base_uom` cannot change while it has an active reorder point (422 `BASE_UOM_LOCKED_BY_REORDER_POINT`).
+- Additive fields: `GET /inventory/movements` items gain `product_name`, `classification`, `lot{ id, number }|null`, `source.number`, `reason_code`; `GET /dashboard` → `inventory.low_stock_now`; `GET /activity` gains types `INTERNAL_CONSUMPTION` and `INVENTORY_ADJUSTMENT` (`detail` = `[IN|OUT] reason_code`, `quantity`, document = the INV operation).
+
 ### 9.6 Owner views
 - `GET /dashboard?date=YYYY-MM-DD` (default today) → `{ business_date, timezone, currency, sales{ count, total, walk_in_count, returns_value, net_sales, reversed_count }, payments{ count, total, reversed, refunded, net_received, by_method{ cash|bank_transfer|qris: { received, reversed, refunded } } }, receivables{ as_of, total, not_yet_due, due_today, overdue, open_sales, customers }, purchasing{ purchase_orders{ count, total }, goods_receipts{ count, cost }, received_quantity[{ uom, received, accept, loss, return_to_supplier, regrade }] }, inventory{ as_of, stock_by_uom[{ uom, available, quarantine, return_pending }], products_in_stock, losses_on_date, sold_quantity_on_date, active_lots_now } }`. No HPP/margin.
   Receivables and stock are reconstructed **as of the end of that date** from dated facts; `active_lots_now` is current.
@@ -221,6 +236,12 @@ Kept in sync by `MobileApiContractTest::test_every_api_route_is_documented_in_th
 | POST | `inventory/losses` | bearer | yes | InventoryController@loss |
 | GET | `inventory/lot-balances` | bearer | — | LotController@balances |
 | GET | `inventory/movements` | bearer | — | InventoryController@movements |
+| POST | `inventory/consumptions` | bearer | yes | InventoryController@consumption |
+| GET | `inventory/operations` | bearer | — | InventoryController@operations |
+| GET | `inventory/operations/{id}` | bearer | — | InventoryController@operation |
+| GET | `inventory/reorder-points` | bearer | — | ReorderPointController@index |
+| POST | `inventory/reorder-points` | bearer | yes | ReorderPointController@store |
+| GET | `inventory/stock` | bearer | — | InventoryController@stock |
 | POST | `inventory/recoveries` | bearer | yes | InventoryController@recovery |
 | POST | `inventory/regrades` | bearer | yes | InventoryController@regrade |
 | POST | `inventory/supplier-returns` | bearer | yes | InventoryController@supplierReturn |

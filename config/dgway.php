@@ -46,6 +46,17 @@ return [
     ],
 
     /*
+    | F3 — configuration tables that reference products but are NOT transactions
+    | (a threshold is not a use of the product). They do not lock the product's
+    | classification; the base UOM is guarded separately while an active reorder
+    | point exists (UpdateProduct + DB trigger). Every product foreign key must be
+    | listed in exactly one of the two registries (ProjectionAndRegistryTest).
+    */
+    'product_configuration_tables' => [
+        'reorder_points.product_id',
+    ],
+
+    /*
     | How long committed idempotency keys are kept before pruning (days).
     | Must exceed the longest time a client may retry the same action.
     */

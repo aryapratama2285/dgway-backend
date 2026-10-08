@@ -120,6 +120,7 @@ final class MobileApiContractTest extends SalesTestCase
         $notErrors = [...$enumValues,
             // activity feed types, document/source types written in UPPER case, movement & bucket names used as data
             'PURCHASE_ORDER', 'GOODS_RECEIPT', 'CUSTOMER_RETURN', 'PAYMENT_REVERSAL', 'SALE_REVERSAL', 'GOODS_RECEIPT_REVERSAL', 'DIRECT_PURCHASE', 'PARTIALLY_PAID',
+            'INVENTORY_ADJUSTMENT', // F3 activity feed type
             // read-model labels, not errors
             'UNATTRIBUTED_LEGACY', 'DUE_TODAY', 'NOT_YET_DUE',
             // A5-C print document types / scan match labels (data, not errors)

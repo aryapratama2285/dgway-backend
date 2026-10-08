@@ -149,6 +149,18 @@ try {
             break;
         }
 
+        // F3: consumes material and keeps the transaction (and its stock locks) open.
+        case 'hold-consume': {
+            [, , $userId, $nodeId, $productId, $qty, $holdMs] = $argv;
+            $app->make(TransactionManager::class)->run(function () use ($app, $userId, $nodeId, $productId, $qty, $say, $holdMs): void {
+                $app->make(RecordInventoryOperation::class)->consume(Actor::operator($userId, 'worker'), $nodeId, $productId, $qty, 'PACKING');
+                $say('ACQUIRED');
+                usleep((int) $holdMs * 1000);
+            });
+            $say('DONE');
+            break;
+        }
+
         // Waits for "go", then records a loss. Reports RESULT ok|<code>
         // (not ERROR, so a rejected decrement is an expected outcome).
         case 'loss-on-go': {
