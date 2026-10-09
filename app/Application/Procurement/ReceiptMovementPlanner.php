@@ -25,6 +25,7 @@ use DateTimeImmutable;
  * the bucket its disposition decides. Then:
  *
  *   ACCEPT q              RECEIPT +q AVAILABLE
+ *   QUARANTINE q          RECEIPT +q QUARANTINE                              (F4A: held, released by RECOVERY)
  *   LOSS q                RECEIPT +q QUARANTINE, LOSS −q QUARANTINE          (net 0, traced)
  *   RETURN_TO_SUPPLIER q  RECEIPT +q RETURN_PENDING                         (held, not sellable)
  *   REGRADE q → B         RECEIPT +q QUARANTINE, REGRADE_OUT −q QUARANTINE,
@@ -65,6 +66,9 @@ final class ReceiptMovementPlanner
                 switch ($d->type) {
                     case DispositionType::ACCEPT:
                         $movements[] = $mk(MovementType::RECEIPT, $at(StockBucket::AVAILABLE), Direction::IN, $d->quantity, $d->reason);
+                        break;
+                    case DispositionType::QUARANTINE:
+                        $movements[] = $mk(MovementType::RECEIPT, $at(StockBucket::QUARANTINE), Direction::IN, $d->quantity, $d->reason ?? 'held in quarantine at receiving');
                         break;
                     case DispositionType::LOSS:
                         $movements[] = $mk(MovementType::RECEIPT, $at(StockBucket::QUARANTINE), Direction::IN, $d->quantity, $d->reason);

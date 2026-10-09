@@ -19,7 +19,8 @@ use Illuminate\Validation\Rule;
 /** Owner operational reads (A5-B §17): dashboard, daily activity, search, operational defaults. */
 final class OperationsController extends ApiController
 {
-    private const ACTIVITY_TYPES = ['PURCHASE_ORDER', 'GOODS_RECEIPT', 'LOSS', 'SALE', 'PAYMENT', 'CUSTOMER_RETURN', 'PAYMENT_REVERSAL', 'SALE_REVERSAL', 'GOODS_RECEIPT_REVERSAL', 'INTERNAL_CONSUMPTION', 'INVENTORY_ADJUSTMENT'];
+    private const ACTIVITY_TYPES = ['PURCHASE_ORDER', 'GOODS_RECEIPT', 'LOSS', 'SALE', 'PAYMENT', 'CUSTOMER_RETURN', 'PAYMENT_REVERSAL', 'SALE_REVERSAL', 'GOODS_RECEIPT_REVERSAL', 'INTERNAL_CONSUMPTION', 'INVENTORY_ADJUSTMENT',
+        'PURCHASE_ORDER_CONFIRMED', 'PURCHASE_ORDER_CLOSED', 'PURCHASE_ORDER_CANCELLED'];
 
     public function dashboard(Request $request, OwnerDashboard $dashboard, Clock $clock): JsonResponse
     {

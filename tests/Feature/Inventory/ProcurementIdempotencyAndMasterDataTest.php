@@ -80,10 +80,10 @@ final class ProcurementIdempotencyAndMasterDataTest extends InventoryTestCase
         $this->cmd('POST', 'goods-receipts', ['supplier_id' => $this->supplier, 'node_id' => $pickup, 'lines' => [$this->line('1')]])
             ->assertStatus(422)->assertJsonPath('error.code', 'NODE_NOT_USABLE');
 
-        // UOM other than base is rejected, never converted
+        // UOM other than base is rejected unless the product has an active purchasing conversion (F4A), never guessed
         $l = $this->line('1');
         $l['uom'] = 'PCS';
-        $this->createReceipt([$l])->assertStatus(422)->assertJsonPath('error.code', 'UOM_NOT_BASE');
+        $this->createReceipt([$l])->assertStatus(422)->assertJsonPath('error.code', 'UOM_CONVERSION_MISSING');
         $l['uom'] = 'kg';
         $this->createReceipt([$l])->assertCreated();
 

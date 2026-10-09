@@ -202,3 +202,16 @@ estimated: lots with origin ADJUSTMENT or LEGACY have **no** cost link and must 
 as *cost basis unknown*. Purchased stock with a known cost enters through receiving, never
 through an adjustment. Every row is append-only, so a later engine reads history and never
 rewrites it.
+
+## 11. F4A — purchasing units and quarantine at receiving
+
+- **Ledger stays in the base unit.** A PO or receipt line may be written in a purchasing unit (e.g. IKAT, TRAY) with an ACTIVE product conversion. The line keeps a snapshot of `purchase_uom_code`, `purchase_quantity`, its price/cost and `conversion_factor`; every movement is still posted in the base unit.
+- **Quantities convert exactly.** Base = purchasing quantity × factor. A quantity that would need more decimals than the base unit allows is refused (`UOM_CONVERSION_INVALID`), never rounded.
+- **Cost basis.**
+  - The movement / lot `unit_cost` is the base-unit cost: price ÷ factor, half-up, 4 decimals (Rp0.0001).
+  - `line_total` / `line_cost` stay exact in the purchasing unit.
+  - The difference between `line_cost` and `received × unit_cost` is at most received × Rp0.00005. It is visible, never hidden.
+  - Receiving in the PO line's own unit reuses the agreed price exactly. Receiving in the base unit against a converted line uses the rounded base cost.
+- **History is safe.** A change or deactivation of the master conversion affects new documents only. The base unit of a product with active conversions is locked (app + trigger).
+- **QUARANTINE disposition** (goods receipt): RECEIPT +q into QUARANTINE. The quantity is received and owned but not sellable. It is released later with the existing RECOVERY operation (`from_bucket: QUARANTINE`) or written off as a LOSS. Mass balance is unchanged: received = Σ dispositions.
+- **Traceability chain.** lot → `goods_receipt_line` (actual cost, unit snapshot) → `goods_receipt` → `purchase_order_line` (agreed price, unit snapshot) → `purchase_order` → supplier. The PO price is never overwritten by a receipt cost.

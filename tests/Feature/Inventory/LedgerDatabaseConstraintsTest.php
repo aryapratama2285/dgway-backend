@@ -112,9 +112,9 @@ final class LedgerDatabaseConstraintsTest extends InventoryTestCase
     {
         $id = $this->createReceipt([$this->line('20')])->assertCreated()->json('data.id');
         $line = DB::table('goods_receipt_lines')->where('goods_receipt_id', $id)->first();
-        // details are append-only even in DRAFT, but rows may still be added to a draft
-        $this->assertRejected(fn () => DB::table('goods_receipt_dispositions')->where('goods_receipt_line_id', $line->id)->update(['quantity' => 19]), '23001');
-        DB::table('goods_receipt_dispositions')->insert(['id' => (string) Str::uuid7(), 'goods_receipt_line_id' => $line->id, 'disposition_type' => 'LOSS', 'quantity' => 1]);
+        // F4A: details of a DRAFT receipt are editable (they were append-only before), so a draft can be
+        // unbalanced on the way — the posting transition is where the database enforces the mass balance
+        DB::table('goods_receipt_dispositions')->where('goods_receipt_line_id', $line->id)->update(['quantity' => 19]);
         $this->assertRejected(fn () => DB::table('goods_receipts')->where('id', $id)->update(['status' => 'POSTED', 'posted_at' => now(), 'version' => 2]), '23514', 'MASS_BALANCE');
     }
 
@@ -126,12 +126,17 @@ final class LedgerDatabaseConstraintsTest extends InventoryTestCase
         $this->assertSame('3450000.0000', (string) DB::table('purchase_order_lines')->where('id', $lineId)->value('line_total'));
 
         $this->assertRejected(fn () => DB::table('purchase_order_lines')->where('id', $lineId)->update(['received_quantity' => 151]), '23514');
-        $this->assertRejected(fn () => DB::table('purchase_order_lines')->where('id', $lineId)->update(['unit_cost' => 1, 'line_total' => 150]), '23001');
+        // F4A: a DRAFT line may change, but only consistently (unit snapshot check) …
+        $this->assertRejected(fn () => DB::table('purchase_order_lines')->where('id', $lineId)->update(['unit_cost' => 1, 'line_total' => 150]), '23514');
+        // … and after confirmation its terms are frozen and it can no longer be deleted
+        $this->cmd('POST', "purchase-orders/{$po['id']}/confirm")->assertOk();
+        $this->assertRejected(fn () => DB::table('purchase_order_lines')->where('id', $lineId)->update(['unit_cost' => 1, 'line_total' => 150, 'purchase_unit_price' => 1]), '23001');
         $this->assertRejected(fn () => DB::table('purchase_order_lines')->where('id', $lineId)->delete(), '23001');
         $this->assertRejected(fn () => DB::table('purchase_orders')->where('id', $po['id'])->delete(), '23001');
         $this->assertRejected(fn () => DB::table('goods_receipt_lines')->insert([
             'id' => (string) Str::uuid7(), 'goods_receipt_id' => $this->createReceipt([$this->line('1')])->json('data.id'), 'line_no' => 9,
             'product_id' => $this->product('TELUR-X'), 'received_quantity' => 150, 'uom_code' => 'KG', 'unit_cost' => 23000, 'line_cost' => 3400000,
-        ]), '23514'); // line_cost must equal round(qty × cost, 4)
+            'purchase_uom_code' => 'KG', 'purchase_quantity' => 150, 'purchase_unit_cost' => 23000, 'conversion_factor' => 1,
+        ]), '23514'); // line_cost must equal round(purchase qty × purchase unit cost, 4)
     }
 }

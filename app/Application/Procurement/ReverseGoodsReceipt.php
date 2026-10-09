@@ -17,6 +17,8 @@ use App\Domain\Procurement\GoodsReceiptRepository;
 use App\Domain\Procurement\PurchaseOrderRepository;
 use App\Domain\Shared\Identity\Actor;
 use App\Domain\Shared\Identity\Id;
+use App\Application\Shared\Security\Authorizer;
+use App\Application\Shared\Security\Permission;
 use App\Domain\Shared\Time\Clock;
 
 /**
@@ -28,7 +30,9 @@ use App\Domain\Shared\Time\Clock;
  *   - if the stock has meanwhile been used (e.g. returned to supplier, sold
  *     in A4), the reversal would go negative → INSUFFICIENT_STOCK and nothing
  *     is written;
- *   - the purchase order's received quantity is reduced again.
+ *   - the purchase order's received quantity is reduced again — refused when
+ *     the order is CLOSED (F4A: terminal, read-only);
+ *   - needs the `procurement.reverse` permission (F4A).
  * The correct receipt can then be posted as a new document.
  */
 final class ReverseGoodsReceipt
@@ -41,11 +45,14 @@ final class ReverseGoodsReceipt
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
         private readonly AuditRecorder $recorder,
+        private readonly Authorizer $authorizer,
     ) {
     }
 
     public function execute(Actor $actor, string $receiptId, string $reason, ?int $expectedVersion = null): GoodsReceipt
     {
+        $this->authorizer->authorize($actor, Permission::REVERSE_GOODS_RECEIPT);
+
         return $this->tx->run(function () use ($actor, $receiptId, $reason, $expectedVersion): GoodsReceipt {
             $gr = $this->receipts->getForUpdate(Id::fromString($receiptId));
             ExpectedVersion::check('Goods receipt', $gr, $expectedVersion);
@@ -58,7 +65,7 @@ final class ReverseGoodsReceipt
                 foreach ($gr->lines() as $line) {
                     $po->reverseReceipt($line->purchaseOrderLineId, $line->receivedQuantity);
                 }
-                $this->orders->save($po);
+                $this->orders->save($po, $actor->userId);
             }
 
             $source = new SourceDocument('goods_receipt', $gr->id());

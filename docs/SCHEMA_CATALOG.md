@@ -33,6 +33,7 @@
 | `personal_access_tokens` | Identity | AccessToken | operational | discard | — |
 | `print_settings` | Shared | PrintSettings | master | preserve | — |
 | `product_categories` | Catalog | ProductCategory | master | preserve | code |
+| `product_uom_conversions` | Catalog | ProductUomConversion | master | preserve | product_id+uom_code |
 | `products` | Catalog | Product | master | preserve | sku |
 | `purchase_order_lines` | Procurement | PurchaseOrder | line | preserve | — |
 | `purchase_orders` | Procurement | PurchaseOrder | document | preserve | number |
@@ -57,6 +58,7 @@
 | `customer_returns` | node_id | `nodes` | Sales → Network | RESTRICT |
 | `goods_receipt_dispositions` | target_product_id | `products` | Procurement → Catalog | RESTRICT |
 | `goods_receipt_lines` | product_id | `products` | Procurement → Catalog | RESTRICT |
+| `goods_receipt_lines` | purchase_uom_code | `uoms` | Procurement → Catalog | RESTRICT |
 | `goods_receipt_lines` | uom_code | `uoms` | Procurement → Catalog | RESTRICT |
 | `goods_receipts` | created_by | `users` | Procurement → Identity | RESTRICT |
 | `goods_receipts` | node_id | `nodes` | Procurement → Network | RESTRICT |
@@ -82,8 +84,14 @@
 | `payments` | customer_id | `business_partners` | Payment → Partner | RESTRICT |
 | `payments` | sale_id | `sales` | Payment → Sales | RESTRICT |
 | `print_settings` | updated_by | `users` | Shared → Identity | RESTRICT |
+| `product_uom_conversions` | created_by | `users` | Catalog → Identity | RESTRICT |
+| `product_uom_conversions` | updated_by | `users` | Catalog → Identity | RESTRICT |
 | `purchase_order_lines` | product_id | `products` | Procurement → Catalog | RESTRICT |
+| `purchase_order_lines` | purchase_uom_code | `uoms` | Procurement → Catalog | RESTRICT |
 | `purchase_order_lines` | uom_code | `uoms` | Procurement → Catalog | RESTRICT |
+| `purchase_orders` | cancelled_by | `users` | Procurement → Identity | RESTRICT |
+| `purchase_orders` | closed_by | `users` | Procurement → Identity | RESTRICT |
+| `purchase_orders` | confirmed_by | `users` | Procurement → Identity | RESTRICT |
 | `purchase_orders` | created_by | `users` | Procurement → Identity | RESTRICT |
 | `purchase_orders` | node_id | `nodes` | Procurement → Network | RESTRICT |
 | `purchase_orders` | supplier_id | `business_partners` | Procurement → Partner | RESTRICT |
@@ -340,13 +348,13 @@ Owner **Procurement** · aggregate GoodsReceipt · kind **line** · migration **
 Constraints:
 - CHECK `grd_quantity_check`: `CHECK ((quantity > (0)::numeric))`
 - CHECK `grd_target_check`: `CHECK ((((disposition_type)::text = 'REGRADE'::text) = (target_product_id IS NOT NULL)))`
-- CHECK `grd_type_check`: `CHECK (((disposition_type)::text = ANY ((ARRAY['ACCEPT'::character varying, 'LOSS'::character varying, 'RETURN_TO_SUPPLIER'::character varying, 'REGRADE'::character varying])::text[])))`
+- CHECK `grd_type_check`: `CHECK (((disposition_type)::text = ANY ((ARRAY['ACCEPT'::character varying, 'QUARANTINE'::character varying, 'LOSS'::character varying, 'RETURN_TO_SUPPLIER'::character varying, 'REGRADE'::character varying])::text[])))`
 - FK `goods_receipt_dispositions_goods_receipt_line_id_foreign`: `FOREIGN KEY (goods_receipt_line_id) REFERENCES goods_receipt_lines(id) ON DELETE RESTRICT`
 - FK `goods_receipt_dispositions_target_product_id_foreign`: `FOREIGN KEY (target_product_id) REFERENCES products(id) ON DELETE RESTRICT`
 - PK `goods_receipt_dispositions_pkey`: `PRIMARY KEY (id)`
 
 Triggers:
-- `goods_receipt_dispositions_guard` → `dgway_receipt_detail_guard()` (BEFORE INSERT OR DELETE OR UPDATE)
+- `goods_receipt_dispositions_guard` → `dgway_receipt_detail_guard_f4a()` (BEFORE INSERT OR DELETE OR UPDATE)
 
 Indexes:
 - `goods_receipt_dispositions_goods_receipt_line_id_index`: `btree (goods_receipt_line_id)`
@@ -372,27 +380,33 @@ Owner **Procurement** · aggregate GoodsReceipt · kind **line** · migration **
 | best_before_date | date | yes |  |
 | collection_date | date | yes |  |
 | supplier_reference | character varying(60) | yes |  |
+| purchase_uom_code | character varying(16) | no |  |
+| purchase_quantity | numeric(18,4) | no |  |
+| purchase_unit_cost | numeric(19,4) | no |  |
+| conversion_factor | numeric(18,6) | no |  |
 
 Constraints:
-- CHECK `grl_cost_check`: `CHECK (((unit_cost >= (0)::numeric) AND (line_cost = round((received_quantity * unit_cost), 4))))`
 - CHECK `grl_dates_check`: `CHECK (((best_before_date IS NULL) OR (manufactured_date IS NULL) OR (best_before_date >= manufactured_date)))`
 - CHECK `grl_quantity_check`: `CHECK ((received_quantity > (0)::numeric))`
+- CHECK `grl_unit_check`: `CHECK (((purchase_quantity > (0)::numeric) AND (conversion_factor > (0)::numeric) AND (purchase_unit_cost >= (0)::numeric) AND (unit_cost >= (0)::numeric) AND (received_quantity = (purchase_quantity * conversion_factor)) AND (line_cost = round((purchase_quantity * purchase_unit_cost), 4)) AND (abs(((unit_cost * conversion_factor) - purchase_unit_cost)) <= (conversion_factor * 0.00005)) AND (((purchase_uom_code)::text <> (uom_code)::text) OR (conversion_factor = (1)::numeric))))`
 - CHECK `grl_upstream_check`: `CHECK ((((supplier_reference IS NULL) OR (btrim((supplier_reference)::text) <> ''::text)) AND ((collection_date IS NULL) OR (manufactured_date IS NULL) OR (collection_date >= manufactured_date))))`
 - FK `goods_receipt_lines_goods_receipt_id_foreign`: `FOREIGN KEY (goods_receipt_id) REFERENCES goods_receipts(id) ON DELETE RESTRICT`
 - FK `goods_receipt_lines_product_id_foreign`: `FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT`
 - FK `goods_receipt_lines_purchase_order_line_id_foreign`: `FOREIGN KEY (purchase_order_line_id) REFERENCES purchase_order_lines(id) ON DELETE RESTRICT`
+- FK `goods_receipt_lines_purchase_uom_foreign`: `FOREIGN KEY (purchase_uom_code) REFERENCES uoms(code) ON DELETE RESTRICT`
 - FK `goods_receipt_lines_uom_code_foreign`: `FOREIGN KEY (uom_code) REFERENCES uoms(code) ON DELETE RESTRICT`
 - PK `goods_receipt_lines_pkey`: `PRIMARY KEY (id)`
 - UNIQUE `goods_receipt_lines_goods_receipt_id_line_no_unique`: `UNIQUE (goods_receipt_id, line_no)`
 - UNIQUE `goods_receipt_lines_goods_receipt_id_product_id_unique`: `UNIQUE (goods_receipt_id, product_id)`
 
 Triggers:
-- `goods_receipt_lines_guard` → `dgway_receipt_detail_guard()` (BEFORE INSERT OR DELETE OR UPDATE)
+- `goods_receipt_lines_guard` → `dgway_receipt_detail_guard_f4a()` (BEFORE INSERT OR DELETE OR UPDATE)
 
 Indexes:
 - `goods_receipt_lines_goods_receipt_id_line_no_unique`: `UNIQUE btree (goods_receipt_id, line_no)`
 - `goods_receipt_lines_goods_receipt_id_product_id_unique`: `UNIQUE btree (goods_receipt_id, product_id)`
 - `goods_receipt_lines_pkey`: `UNIQUE btree (id)`
+- `goods_receipt_lines_purchase_order_line_id_index`: `btree (purchase_order_line_id)`
 
 ## `goods_receipts`
 
@@ -831,6 +845,41 @@ Indexes:
 - `product_categories_parent_id_index`: `btree (parent_id)`
 - `product_categories_pkey`: `UNIQUE btree (id)`
 
+## `product_uom_conversions`
+
+Owner **Catalog** · aggregate ProductUomConversion · kind **master** · migration **preserve**
+
+| Column | Type | Null | Default / generated |
+| --- | --- | --- | --- |
+| id | uuid | no |  |
+| product_id | uuid | no |  |
+| uom_code | character varying(16) | no |  |
+| factor_to_base | numeric(18,6) | no |  |
+| is_active | boolean | no | true |
+| version | integer | no | 1 |
+| created_by | uuid | yes |  |
+| updated_by | uuid | yes |  |
+| created_at | timestamp(0) with time zone | no | CURRENT_TIMESTAMP |
+| updated_at | timestamp(0) with time zone | no | CURRENT_TIMESTAMP |
+
+Constraints:
+- CHECK `puc_factor_check`: `CHECK ((factor_to_base > (0)::numeric))`
+- CHECK `puc_version_check`: `CHECK ((version >= 1))`
+- FK `product_uom_conversions_created_by_foreign`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT`
+- FK `product_uom_conversions_product_id_foreign`: `FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT`
+- FK `product_uom_conversions_uom_code_foreign`: `FOREIGN KEY (uom_code) REFERENCES uoms(code) ON DELETE RESTRICT`
+- FK `product_uom_conversions_updated_by_foreign`: `FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE RESTRICT`
+- PK `product_uom_conversions_pkey`: `PRIMARY KEY (id)`
+- UNIQUE `product_uom_conversions_product_uom_unique`: `UNIQUE (product_id, uom_code)`
+
+Triggers:
+- `product_uom_conversions_guard` → `dgway_uom_conversion_guard()` (BEFORE INSERT OR UPDATE)
+- `product_uom_conversions_identity_guard` → `dgway_guard_identity()` (BEFORE DELETE OR UPDATE)
+
+Indexes:
+- `product_uom_conversions_pkey`: `UNIQUE btree (id)`
+- `product_uom_conversions_product_uom_unique`: `UNIQUE btree (product_id, uom_code)`
+
 ## `products`
 
 Owner **Catalog** · aggregate Product · kind **master** · migration **preserve**
@@ -860,6 +909,7 @@ Constraints:
 - UNIQUE `products_sku_unique`: `UNIQUE (sku)`
 
 Triggers:
+- `products_base_uom_conversion_guard` → `dgway_guard_base_uom_vs_conversions()` (BEFORE UPDATE OF base_uom_code)
 - `products_base_uom_reorder_guard` → `dgway_guard_base_uom_vs_reorder_points()` (BEFORE UPDATE OF base_uom_code)
 - `products_identity_guard` → `dgway_guard_identity()` (BEFORE DELETE OR UPDATE)
 
@@ -886,20 +936,25 @@ Owner **Procurement** · aggregate PurchaseOrder · kind **line** · migration *
 | line_total | numeric(19,4) | no |  |
 | created_at | timestamp(0) with time zone | yes |  |
 | updated_at | timestamp(0) with time zone | yes |  |
+| purchase_uom_code | character varying(16) | no |  |
+| purchase_quantity | numeric(18,4) | no |  |
+| purchase_unit_price | numeric(19,4) | no |  |
+| conversion_factor | numeric(18,6) | no |  |
 
 Constraints:
-- CHECK `pol_cost_check`: `CHECK (((unit_cost >= (0)::numeric) AND (line_total = round((ordered_quantity * unit_cost), 4))))`
 - CHECK `pol_line_no_check`: `CHECK ((line_no >= 1))`
 - CHECK `pol_quantities_check`: `CHECK (((ordered_quantity > (0)::numeric) AND (received_quantity >= (0)::numeric) AND (received_quantity <= ordered_quantity)))`
+- CHECK `pol_unit_check`: `CHECK (((purchase_quantity > (0)::numeric) AND (conversion_factor > (0)::numeric) AND (purchase_unit_price >= (0)::numeric) AND (unit_cost >= (0)::numeric) AND (ordered_quantity = (purchase_quantity * conversion_factor)) AND (line_total = round((purchase_quantity * purchase_unit_price), 4)) AND (abs(((unit_cost * conversion_factor) - purchase_unit_price)) <= (conversion_factor * 0.00005)) AND (((purchase_uom_code)::text <> (uom_code)::text) OR (conversion_factor = (1)::numeric))))`
 - FK `purchase_order_lines_product_id_foreign`: `FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT`
 - FK `purchase_order_lines_purchase_order_id_foreign`: `FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE RESTRICT`
+- FK `purchase_order_lines_purchase_uom_foreign`: `FOREIGN KEY (purchase_uom_code) REFERENCES uoms(code) ON DELETE RESTRICT`
 - FK `purchase_order_lines_uom_code_foreign`: `FOREIGN KEY (uom_code) REFERENCES uoms(code) ON DELETE RESTRICT`
 - PK `purchase_order_lines_pkey`: `PRIMARY KEY (id)`
 - UNIQUE `purchase_order_lines_purchase_order_id_line_no_unique`: `UNIQUE (purchase_order_id, line_no)`
 - UNIQUE `purchase_order_lines_purchase_order_id_product_id_unique`: `UNIQUE (purchase_order_id, product_id)`
 
 Triggers:
-- `purchase_order_lines_guard` → `dgway_po_line_guard()` (BEFORE DELETE OR UPDATE)
+- `purchase_order_lines_guard` → `dgway_po_line_guard_f4a()` (BEFORE INSERT OR DELETE OR UPDATE)
 
 Indexes:
 - `purchase_order_lines_pkey`: `UNIQUE btree (id)`
@@ -925,11 +980,25 @@ Owner **Procurement** · aggregate PurchaseOrder · kind **document** · migrati
 | version | integer | no | 1 |
 | created_at | timestamp(0) with time zone | yes |  |
 | updated_at | timestamp(0) with time zone | yes |  |
+| confirmed_at | timestamp(0) with time zone | yes |  |
+| confirmed_by | uuid | yes |  |
+| cancelled_at | timestamp(0) with time zone | yes |  |
+| cancelled_by | uuid | yes |  |
+| closed_at | timestamp(0) with time zone | yes |  |
+| closed_by | uuid | yes |  |
+| close_reason_code | character varying(32) | yes |  |
+| close_note | character varying(500) | yes |  |
 
 Constraints:
 - CHECK `po_cancel_reason_check`: `CHECK ((((status)::text = 'CANCELLED'::text) = (cancel_reason IS NOT NULL)))`
-- CHECK `po_status_check`: `CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'CONFIRMED'::character varying, 'PARTIALLY_RECEIVED'::character varying, 'RECEIVED'::character varying, 'CANCELLED'::character varying])::text[])))`
+- CHECK `po_cancelled_at_check`: `CHECK ((((status)::text = 'CANCELLED'::text) = (cancelled_at IS NOT NULL)))`
+- CHECK `po_closed_check`: `CHECK (((((status)::text = 'CLOSED'::text) = (closed_at IS NOT NULL)) AND (((status)::text = 'CLOSED'::text) = (close_reason_code IS NOT NULL)) AND ((close_reason_code IS NULL) OR ((close_reason_code)::text = ANY ((ARRAY['SUPPLIER_SHORTFALL'::character varying, 'PURCHASE_STOPPED'::character varying, 'OTHER'::character varying])::text[]))) AND ((close_note IS NULL) OR ((close_reason_code IS NOT NULL) AND (btrim((close_note)::text) <> ''::text))) AND (((close_reason_code)::text IS DISTINCT FROM 'OTHER'::text) OR (close_note IS NOT NULL))))`
+- CHECK `po_confirmed_at_check`: `CHECK ((((status)::text <> ALL ((ARRAY['CONFIRMED'::character varying, 'PARTIALLY_RECEIVED'::character varying, 'RECEIVED'::character varying, 'CLOSED'::character varying])::text[])) OR (confirmed_at IS NOT NULL)))`
+- CHECK `po_status_check`: `CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'CONFIRMED'::character varying, 'PARTIALLY_RECEIVED'::character varying, 'RECEIVED'::character varying, 'CLOSED'::character varying, 'CANCELLED'::character varying])::text[])))`
 - CHECK `po_version_check`: `CHECK ((version >= 1))`
+- FK `purchase_orders_cancelled_by_foreign`: `FOREIGN KEY (cancelled_by) REFERENCES users(id) ON DELETE RESTRICT`
+- FK `purchase_orders_closed_by_foreign`: `FOREIGN KEY (closed_by) REFERENCES users(id) ON DELETE RESTRICT`
+- FK `purchase_orders_confirmed_by_foreign`: `FOREIGN KEY (confirmed_by) REFERENCES users(id) ON DELETE RESTRICT`
 - FK `purchase_orders_created_by_foreign`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT`
 - FK `purchase_orders_node_id_foreign`: `FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE RESTRICT`
 - FK `purchase_orders_supplier_id_foreign`: `FOREIGN KEY (supplier_id) REFERENCES business_partners(id) ON DELETE RESTRICT`
@@ -937,10 +1006,12 @@ Constraints:
 - UNIQUE `purchase_orders_number_unique`: `UNIQUE (number)`
 
 Triggers:
+- `purchase_orders_guard` → `dgway_purchase_order_guard()` (BEFORE UPDATE)
 - `purchase_orders_no_delete` → `dgway_forbid_mutation()` (BEFORE DELETE)
 
 Indexes:
 - `purchase_orders_number_unique`: `UNIQUE btree (number)`
+- `purchase_orders_open_idx`: `btree (node_id, business_date) WHERE ((status)::text = ANY ((ARRAY['CONFIRMED'::character varying, 'PARTIALLY_RECEIVED'::character varying])::text[]))`
 - `purchase_orders_pkey`: `UNIQUE btree (id)`
 - `purchase_orders_status_business_date_index`: `btree (status, business_date)`
 - `purchase_orders_supplier_id_business_date_index`: `btree (supplier_id, business_date)`

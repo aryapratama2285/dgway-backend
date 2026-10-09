@@ -259,3 +259,19 @@ The "meaning" column is taken from the server message (‹…› = value filled 
 | `INSUFFICIENT_STOCK` | 409 | Also for `POST /inventory/consumptions` when the quantity exceeds AVAILABLE at the node (nothing written). |
 
 `INVENTORY_ADJUSTMENT` and `INTERNAL_CONSUMPTION` are activity-feed / operation **types** (data), not error codes.
+
+## F4A additions (procurement lifecycle & purchasing units)
+
+| Code | HTTP | When |
+| --- | --- | --- |
+| `UOM_CONVERSION_MISSING` | 422 | A PO or goods-receipt line uses a unit other than the product's base unit and the product has no ACTIVE conversion for it (`details.field`, `details.base_uom`). Define it with `PUT /products/{id}/uom-conversions/{uom}`. Replaces `UOM_NOT_BASE` for purchasing documents only. |
+| `UOM_CONVERSION_INVALID` | 422 | Conversion factor ≤ 0 or with more than 6 decimals; the unit is the product's base unit; or a purchasing quantity whose base equivalent would need more decimals than the base unit allows (never rounded). |
+| `CLOSE_REASON_REQUIRED` | 422 | `POST /purchase-orders/{id}/close` with an unknown reason, or reason `OTHER` without a `note`. |
+| `INVALID_STATUS_TRANSITION` | 409 | Also: closing an order that is not PARTIALLY_RECEIVED / RECEIVED; editing (`PATCH`) a purchase order or goods receipt that is no longer DRAFT (`details.action = "edit"`); reversing a receipt of a CLOSED order. |
+| `GR_PO_MISMATCH` | 422 | Unchanged code; `details.field` now says which part differs: `supplier_id`, `node_id` or `lines.N.product_id`. |
+| `CURRENCY_MISMATCH` | 422 | Also when a receipt's currency differs from its purchase order's. |
+| `OVER_RECEIPT` | 422 | Unchanged; `details` now carry `field`, `open`, `requested`, `uom` when raised at draft time. |
+| `PRODUCT_UOM_LOCKED` | 422 | Also when `PATCH /products/{id}` changes `base_uom` while ACTIVE purchasing-unit conversions exist (also enforced by a trigger). |
+| `ACCESS_DENIED` | 403 | Also for close (`procurement.close`), cancel (`procurement.cancel`), goods-receipt reversal (`procurement.reverse`) and conversions (`catalog.manage_uom_conversion`) without the permission. |
+
+`PURCHASE_ORDER_CONFIRMED`, `PURCHASE_ORDER_CLOSED` and `PURCHASE_ORDER_CANCELLED` are activity-feed **types** (data), not error codes.

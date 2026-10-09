@@ -124,7 +124,8 @@ final class ReversalAndOperationsTest extends InventoryTestCase
     {
         $id = $this->scenarioA();
         $this->cmd('PUT', 'inventory/balances', ['quantity' => 999])->assertStatus(405);
-        $this->cmd('PATCH', "goods-receipts/{$id}", ['notes' => 'x'])->assertStatus(405);
+        // F4A: PATCH exists for DRAFT receipts only; a POSTED receipt is refused (409), never edited
+        $this->cmd('PATCH', "goods-receipts/{$id}", ['notes' => 'x', 'expected_version' => 2])->assertStatus(409)->assertJsonPath('error.code', 'INVALID_STATUS_TRANSITION');
         $this->cmd('DELETE', "goods-receipts/{$id}")->assertStatus(405);
         $this->assertSame('140.0000', $this->stock()['available']);
     }

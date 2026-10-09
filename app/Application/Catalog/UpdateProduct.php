@@ -12,6 +12,7 @@ use App\Domain\Catalog\Product;
 use App\Domain\Catalog\ProductClassification;
 use App\Domain\Catalog\ProductCategoryRepository;
 use App\Domain\Catalog\ProductRepository;
+use App\Domain\Catalog\ProductUomConversionRepository;
 use App\Domain\Inventory\ReorderPointRepository;
 use App\Domain\Shared\Exception\InvariantViolation;
 use App\Domain\Shared\Identity\Actor;
@@ -33,6 +34,7 @@ final class UpdateProduct
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
         private readonly ReorderPointRepository $reorderPoints,
+        private readonly ProductUomConversionRepository $conversions,
     ) {
     }
 
@@ -61,6 +63,14 @@ final class UpdateProduct
                     throw InvariantViolation::because(
                         'BASE_UOM_LOCKED_BY_REORDER_POINT',
                         "{$product->sku()->value} has an active reorder point in {$product->baseUom()->code}. Clear it before changing the base UOM.",
+                        ['field' => 'base_uom'],
+                    );
+                }
+                // F4A: a purchasing-unit factor is "base units per unit"; changing the base would change its meaning.
+                if ($uom->code !== $product->baseUom()->code && $this->conversions->hasActiveFor($product->id())) {
+                    throw InvariantViolation::because(
+                        'PRODUCT_UOM_LOCKED',
+                        "{$product->sku()->value} has active purchasing-unit conversions to {$product->baseUom()->code}. Deactivate them before changing the base UOM.",
                         ['field' => 'base_uom'],
                     );
                 }

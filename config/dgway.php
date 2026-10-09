@@ -54,6 +54,8 @@ return [
     */
     'product_configuration_tables' => [
         'reorder_points.product_id',
+        // F4A: purchasing-unit conversions (documents keep their own snapshot)
+        'product_uom_conversions.product_id',
     ],
 
     /*

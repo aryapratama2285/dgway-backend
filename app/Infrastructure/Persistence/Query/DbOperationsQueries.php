@@ -91,11 +91,18 @@ final class DbOperationsQueries implements OperationsQueries
             $byType[$r->uom_code][strtolower($r->disposition_type)] = (string) $r->q;
         }
 
+        // F4A: a CURRENT figure (not "as of" the date): orders waiting for goods
+        $open = $this->db->selectOne(<<<'SQL'
+            SELECT count(*) AS n, count(*) FILTER (WHERE status = 'PARTIALLY_RECEIVED') AS partial
+              FROM purchase_orders WHERE status IN ('CONFIRMED', 'PARTIALLY_RECEIVED')
+        SQL);
+
         return [
             'purchase_orders' => ['count' => (int) $po->n, 'total' => (string) $po->total],
+            'open_orders_now' => ['count' => (int) $open->n, 'partially_received' => (int) $open->partial],
             'goods_receipts' => ['count' => (int) $gr->n, 'cost' => (string) $gr->cost],
             'received_quantity' => array_map(fn ($r) => ['uom' => $r->uom_code, 'received' => (string) $r->received] + array_merge(
-                ['accept' => '0.0000', 'loss' => '0.0000', 'return_to_supplier' => '0.0000', 'regrade' => '0.0000'], $byType[$r->uom_code] ?? []), $received),
+                ['accept' => '0.0000', 'quarantine' => '0.0000', 'loss' => '0.0000', 'return_to_supplier' => '0.0000', 'regrade' => '0.0000'], $byType[$r->uom_code] ?? []), $received),
         ];
     }
 
@@ -148,6 +155,24 @@ final class DbOperationsQueries implements OperationsQueries
                    bp.code AS party_code, bp.name AS party_name, NULL AS method, o.created_by AS actor_user_id, o.status AS detail
               FROM purchase_orders o JOIN business_partners bp ON bp.id = o.supplier_id
              WHERE o.business_date = :d AND o.status <> 'DRAFT'
+            UNION ALL
+            SELECT 'PURCHASE_ORDER_CONFIRMED', o.confirmed_at, 'purchase_order', o.id, o.number,
+                   (SELECT sum(line_total) FROM purchase_order_lines WHERE purchase_order_id = o.id), NULL,
+                   bp.code, bp.name, NULL, o.confirmed_by, o.status
+              FROM purchase_orders o JOIN business_partners bp ON bp.id = o.supplier_id
+             WHERE o.confirmed_at IS NOT NULL AND (o.confirmed_at AT TIME ZONE :tz)::date = :d
+            UNION ALL
+            SELECT 'PURCHASE_ORDER_CLOSED', o.closed_at, 'purchase_order', o.id, o.number,
+                   (SELECT sum(line_total) FROM purchase_order_lines WHERE purchase_order_id = o.id), NULL,
+                   bp.code, bp.name, NULL, o.closed_by, o.close_reason_code
+              FROM purchase_orders o JOIN business_partners bp ON bp.id = o.supplier_id
+             WHERE o.closed_at IS NOT NULL AND (o.closed_at AT TIME ZONE :tz)::date = :d
+            UNION ALL
+            SELECT 'PURCHASE_ORDER_CANCELLED', o.cancelled_at, 'purchase_order', o.id, o.number,
+                   (SELECT sum(line_total) FROM purchase_order_lines WHERE purchase_order_id = o.id), NULL,
+                   bp.code, bp.name, NULL, o.cancelled_by, o.cancel_reason
+              FROM purchase_orders o JOIN business_partners bp ON bp.id = o.supplier_id
+             WHERE o.cancelled_at IS NOT NULL AND (o.cancelled_at AT TIME ZONE :tz)::date = :d
             UNION ALL
             SELECT 'GOODS_RECEIPT', g.posted_at, 'goods_receipt', g.id, g.number,
                    (SELECT sum(line_cost) FROM goods_receipt_lines WHERE goods_receipt_id = g.id),

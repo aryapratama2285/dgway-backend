@@ -14,6 +14,11 @@ use App\Domain\Shared\Quantity\Quantity;
  *
  * lineTotal = orderedQuantity × unitCost, rounded half-up to 4 decimals
  * (Money precision). Whole-Rupiah rounding only happens on documents/prints.
+ *
+ * F4A: a line may be bought in a purchasing unit (e.g. TRAY). [$purchasedIn]
+ * keeps the agreed terms in that unit (quantity, price, conversion snapshot);
+ * orderedQuantity / receivedQuantity / unitCost stay in the BASE unit, and
+ * lineTotal = purchasing quantity × purchasing price (exact agreed amount).
  */
 final class PurchaseOrderLine
 {
@@ -24,6 +29,7 @@ final class PurchaseOrderLine
         public readonly Quantity $orderedQuantity,
         public readonly Money $unitCost,
         private Quantity $receivedQuantity,
+        public readonly PurchasedIn $purchasedIn,
     ) {
     }
 
@@ -35,17 +41,35 @@ final class PurchaseOrderLine
             throw InvariantViolation::because('LINE_NO_INVALID', 'Line numbers start at 1.');
         }
 
-        return new self($id, $lineNo, $productId, $ordered, $unitCost, Quantity::zero($ordered->uom));
+        return new self($id, $lineNo, $productId, $ordered, $unitCost, Quantity::zero($ordered->uom), PurchasedIn::inBaseUnit($ordered, $unitCost));
     }
 
-    public static function reconstitute(Id $id, int $lineNo, Id $productId, Quantity $ordered, Money $unitCost, Quantity $received): self
+    /** F4A: a line agreed in a purchasing unit; the base quantity and base unit cost are derived from it. */
+    public static function createPurchased(Id $id, int $lineNo, Id $productId, PurchasedIn $purchasedIn): self
     {
-        return new self($id, $lineNo, $productId, $ordered, $unitCost, $received);
+        if ($lineNo < 1) {
+            throw InvariantViolation::because('LINE_NO_INVALID', 'Line numbers start at 1.');
+        }
+        $ordered = $purchasedIn->baseQuantity();
+
+        return new self($id, $lineNo, $productId, $ordered, $purchasedIn->baseUnitCost(), Quantity::zero($ordered->uom), $purchasedIn);
     }
 
+    public static function reconstitute(Id $id, int $lineNo, Id $productId, Quantity $ordered, Money $unitCost, Quantity $received, ?PurchasedIn $purchasedIn = null): self
+    {
+        return new self($id, $lineNo, $productId, $ordered, $unitCost, $received, $purchasedIn ?? PurchasedIn::inBaseUnit($ordered, $unitCost));
+    }
+
+    /** The agreed amount: purchasing quantity × purchasing price (= ordered × unit cost for a base-unit line). */
     public function lineTotal(): Money
     {
-        return $this->unitCost->multipliedBy($this->orderedQuantity->value());
+        return $this->purchasedIn->total();
+    }
+
+    /** CLOSED orders: what was ordered but will never be received (history, not a rewrite). */
+    public function unfulfilledQuantity(): Quantity
+    {
+        return $this->openQuantity();
     }
 
     public function receivedQuantity(): Quantity

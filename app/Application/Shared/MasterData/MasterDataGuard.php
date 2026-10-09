@@ -6,6 +6,7 @@ namespace App\Application\Shared\MasterData;
 
 use App\Domain\Catalog\Product;
 use App\Domain\Catalog\ProductRepository;
+use App\Domain\Catalog\ProductUomConversionRepository;
 use App\Domain\Network\Node;
 use App\Domain\Network\NodeCapability;
 use App\Domain\Network\NodeRepository;
@@ -14,6 +15,7 @@ use App\Domain\Partner\BusinessPartnerRepository;
 use App\Domain\Shared\Exception\InvariantViolation;
 use App\Domain\Shared\Identity\Id;
 use App\Domain\Shared\Quantity\Quantity;
+use App\Domain\Shared\Quantity\UnitConversion;
 use App\Domain\Shared\Quantity\Uom;
 
 /**
@@ -26,7 +28,12 @@ use App\Domain\Shared\Quantity\Uom;
  *
  * UOM POLICY (A3 §34): the ledger is always in the product's base UOM. A
  * quantity sent in another unit is REJECTED (UOM_NOT_BASE) — there is no
- * implicit conversion. Product-specific conversions are a future extension.
+ * implicit conversion.
+ *
+ * F4A: PURCHASING documents (PO and goods-receipt lines) may be written in a
+ * purchasing unit that has an ACTIVE product-specific conversion
+ * ({@see purchaseUnit()}); they store a snapshot of it and post to the ledger
+ * in the base unit. Everything else stays base-unit only.
  */
 final class MasterDataGuard
 {
@@ -34,7 +41,27 @@ final class MasterDataGuard
         private readonly BusinessPartnerRepository $partners,
         private readonly NodeRepository $nodes,
         private readonly ProductRepository $products,
+        private readonly ProductUomConversionRepository $conversions,
     ) {
+    }
+
+    /**
+     * F4A: the purchasing unit [$uom] of [$product] — the base unit (identity)
+     * when [$uom] is null or the base code, otherwise its ACTIVE conversion
+     * (422 UOM_CONVERSION_MISSING when none is defined).
+     */
+    public function purchaseUnit(Product $product, ?string $uom, string $field = 'uom'): UnitConversion
+    {
+        $base = $product->baseUom();
+        if ($uom === null || trim($uom) === '' || strtoupper(trim($uom)) === $base->code) {
+            return UnitConversion::identity($base);
+        }
+        $conversion = $this->conversions->findActive($product->id(), $uom, $base)
+            ?? throw InvariantViolation::because('UOM_CONVERSION_MISSING',
+                "{$product->sku()->value} has no active conversion from '".strtoupper(trim($uom))."' to its base unit {$base->code}.",
+                ['field' => $field, 'base_uom' => $base->code]);
+
+        return $conversion->conversion();
     }
 
     public function activeSupplier(string $partnerId): BusinessPartner

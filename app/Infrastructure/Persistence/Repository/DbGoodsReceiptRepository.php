@@ -11,6 +11,9 @@ use App\Domain\Procurement\GoodsReceipt;
 use App\Domain\Procurement\GoodsReceiptLine;
 use App\Domain\Procurement\GoodsReceiptRepository;
 use App\Domain\Procurement\GoodsReceiptStatus;
+use App\Domain\Procurement\PurchasedIn;
+use App\Domain\Shared\Quantity\UnitConversion;
+use App\Domain\Shared\Quantity\Uom;
 use App\Domain\Shared\Document\DocumentNumber;
 use App\Domain\Shared\Identity\Id;
 use App\Domain\Shared\Money\Currency;
@@ -54,6 +57,29 @@ final class DbGoodsReceiptRepository implements GoodsReceiptRepository
             'created_by' => $actorUserId,
         ], $gr, self::LABEL, 'goods_receipts_number_unique', $gr->number->toString());
 
+        $this->insertLines($gr);
+    }
+
+    public function saveDraft(GoodsReceipt $gr, bool $replaceLines): void
+    {
+        $this->support->update('goods_receipts', [
+            'business_date' => $gr->businessDate->toString(),
+            'received_at' => $gr->receivedAt->format('Y-m-d H:i:sP'),
+            'currency' => $gr->currency->code,
+            'notes' => $gr->notes(),
+        ], $gr, self::LABEL);
+        if ($replaceLines) {
+            // allowed only while the receipt is DRAFT (dgway_receipt_detail_guard_f4a)
+            $db = $this->support->db();
+            $lineIds = $db->table('goods_receipt_lines')->where('goods_receipt_id', $gr->id()->value)->pluck('id')->all();
+            $db->table('goods_receipt_dispositions')->whereIn('goods_receipt_line_id', $lineIds)->delete();
+            $db->table('goods_receipt_lines')->where('goods_receipt_id', $gr->id()->value)->delete();
+            $this->insertLines($gr);
+        }
+    }
+
+    private function insertLines(GoodsReceipt $gr): void
+    {
         $db = $this->support->db();
         foreach ($gr->lines() as $l) {
             $db->table('goods_receipt_lines')->insert([
@@ -70,6 +96,10 @@ final class DbGoodsReceiptRepository implements GoodsReceiptRepository
                 'best_before_date' => $l->bestBeforeDate?->toString(),
                 'collection_date' => $l->collectionDate?->toString(),
                 'supplier_reference' => $l->supplierReference,
+                'purchase_uom_code' => $l->purchasedIn->quantity->uom->code,
+                'purchase_quantity' => $l->purchasedIn->quantity->toStorage(),
+                'purchase_unit_cost' => $l->purchasedIn->unitPrice->toStorage(),
+                'conversion_factor' => $l->purchasedIn->conversion->factorToStorage(),
             ]);
             foreach ($l->dispositions as $d) {
                 $db->table('goods_receipt_dispositions')->insert([
@@ -117,6 +147,7 @@ final class DbGoodsReceiptRepository implements GoodsReceiptRepository
                 isset($l->best_before_date) ? BusinessDate::fromString((string) $l->best_before_date) : null,
                 isset($l->collection_date) ? BusinessDate::fromString((string) $l->collection_date) : null,
                 $l->supplier_reference ?? null,
+                $this->purchasedIn($l, $uom, $currency),
             );
         }, $lineRows);
 
@@ -130,6 +161,19 @@ final class DbGoodsReceiptRepository implements GoodsReceiptRepository
             $r->posted_at ? new DateTimeImmutable((string) $r->posted_at) : null,
             $r->reversed_at ? new DateTimeImmutable((string) $r->reversed_at) : null,
             $r->status_reason,
+        );
+    }
+
+    /** The stored purchasing-unit snapshot of a line (F4A columns). */
+    private function purchasedIn(object $l, Uom $baseUom, Currency $currency): PurchasedIn
+    {
+        $unit = $l->purchase_uom_code === $baseUom->code ? $baseUom
+            : ($this->uoms->find($l->purchase_uom_code) ?? throw new RuntimeException("Unknown UOM {$l->purchase_uom_code}"));
+
+        return new PurchasedIn(
+            UnitConversion::of($unit, $baseUom, (string) $l->conversion_factor),
+            Quantity::of(DbStockLedger::trim((string) $l->purchase_quantity), $unit),
+            Money::of((string) $l->purchase_unit_cost, $currency),
         );
     }
 

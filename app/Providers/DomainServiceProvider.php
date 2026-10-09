@@ -25,6 +25,8 @@ use App\Domain\Inventory\DisallowNegativeStock;
 use App\Domain\Inventory\InventoryOperationRepository;
 use App\Domain\Inventory\LotRepository;
 use App\Domain\Inventory\ReorderPointRepository;
+use App\Domain\Catalog\ProductUomConversionRepository;
+use App\Infrastructure\Persistence\Repository\DbProductUomConversionRepository;
 use App\Infrastructure\Persistence\Repository\DbLotRepository;
 use App\Infrastructure\Persistence\Repository\DbReorderPointRepository;
 use App\Domain\Inventory\NegativeStockPolicy;
@@ -141,6 +143,7 @@ final class DomainServiceProvider extends ServiceProvider
         $this->app->bind(InventoryOperationRepository::class, DbInventoryOperationRepository::class);
         $this->app->bind(LotRepository::class, DbLotRepository::class);
         $this->app->bind(ReorderPointRepository::class, DbReorderPointRepository::class);
+        $this->app->bind(ProductUomConversionRepository::class, DbProductUomConversionRepository::class);
         // Default policy: stock never goes below zero (A3 §17).
         $this->app->bind(NegativeStockPolicy::class, DisallowNegativeStock::class);
         $this->app->bind(InventoryQueries::class, DbInventoryQueries::class);

@@ -11,15 +11,14 @@ use App\Application\Shared\MasterData\MasterDataGuard;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Network\NodeCapability;
 use App\Domain\Procurement\PurchaseOrder;
-use App\Domain\Procurement\PurchaseOrderLine;
 use App\Domain\Procurement\PurchaseOrderRepository;
 use App\Domain\Shared\Identity\Actor;
-use App\Domain\Shared\Money\Money;
 use App\Domain\Shared\Time\BusinessDate;
 use App\Domain\Shared\Time\Clock as BusinessClock;
 
 /**
  * @phpstan-type LineInput array{product_id: string, quantity: string|int, uom?: ?string, unit_cost: string|int}
+ *   `uom` = purchasing unit (F4A, default base unit), `unit_cost` = agreed price per that unit
  */
 final class CreatePurchaseOrder
 {
@@ -28,6 +27,7 @@ final class CreatePurchaseOrder
     public function __construct(
         private readonly PurchaseOrderRepository $orders,
         private readonly MasterDataGuard $guard,
+        private readonly PurchaseOrderLineFactory $lineFactory,
         private readonly DocumentNumberGenerator $numbers,
         private readonly IdentityGenerator $ids,
         private readonly BusinessClock $clock,
@@ -44,17 +44,7 @@ final class CreatePurchaseOrder
             $node = $this->guard->nodeWith($nodeId, NodeCapability::RECEIVING, NodeCapability::INVENTORY);
             $date = $businessDate === null ? $this->clock->today() : BusinessDate::fromString($businessDate);
 
-            $poLines = [];
-            foreach (array_values($lines) as $i => $line) {
-                $product = $this->guard->activeProduct((string) $line['product_id'], "lines.{$i}.product_id");
-                $poLines[] = PurchaseOrderLine::create(
-                    $this->ids->next(),
-                    $i + 1,
-                    $product->id(),
-                    MasterDataGuard::baseQuantity($product, (string) $line['quantity'], $line['uom'] ?? null),
-                    Money::of((string) $line['unit_cost']),
-                );
-            }
+            $poLines = $this->lineFactory->build($lines);
 
             $po = PurchaseOrder::draft($this->ids->next(), $this->numbers->next(self::PREFIX, $date), $supplier->id(), $node->id(), $date, $poLines, $notes);
             $this->orders->add($po, $actor->userId);

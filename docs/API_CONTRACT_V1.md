@@ -113,6 +113,22 @@ Commands (Idempotency-Key): `POST /products`, `PATCH /products/{id}` (+`expected
 - `POST /goods-receipts/{id}/post` `{ expected_version? }` → 200 POSTED. **Creates the lots** (one per line + derived lots for REGRADE) and the ledger movements. Errors: 409 `INVALID_STATUS_TRANSITION` (already posted), 422 `MASS_BALANCE_VIOLATED`, `OVER_RECEIPT`.
 - `POST /goods-receipts/{id}/reverse` `{ reason }` (posted → REVERSED, compensating movements, lot becomes DEPLETED); `/cancel` (draft only).
 
+### 9.3a Procurement lifecycle & purchasing units (F4A)
+
+- **States.** PO: `DRAFT → CONFIRMED → PARTIALLY_RECEIVED → RECEIVED`, plus `CANCELLED` (nothing received) and **`CLOSED`** (finished, possibly short). `CLOSED` and `CANCELLED` are terminal and read-only (also enforced by a trigger). GR: `DRAFT → POSTED` (`REVERSED`, `CANCELLED` unchanged).
+- `PATCH /purchase-orders/{id}` `{ expected_version, supplier_id?, node_id?, business_date?, notes?, lines? }` — DRAFT only. Absent fields are unchanged; `lines` replaces all lines. Otherwise → 409 `INVALID_STATUS_TRANSITION` (`details.action = "edit"`).
+- `POST /purchase-orders/{id}/close` `{ reason_code: SUPPLIER_SHORTFALL|PURCHASE_STOPPED|OTHER, note? (required for OTHER), expected_version? }` — PARTIALLY_RECEIVED or RECEIVED only (permission `procurement.close`). Ordered stays as ordered; `lines[].unfulfilled_quantity` = ordered − received. Draft receipts left on a closed order cannot be posted (409 `INVALID_STATUS_TRANSITION`; creating a new one → 422 `PO_NOT_RECEIVABLE`).
+- `PATCH /goods-receipts/{id}` `{ expected_version, business_date?, received_at?, notes?, lines? }` — DRAFT only. Supplier, node and PO are fixed: cancel the draft to change them.
+- **Purchasing units.** On PO and GR lines, `uom` is the unit the line is bought/counted in (default: the base unit) and `unit_cost` is the price/cost **per that unit**. A non-base unit needs an active conversion: `GET /products/{id}/uom-conversions`, `PUT /products/{id}/uom-conversions/{uom}` `{ factor_to_base, is_active?, expected_version? }` (permission `catalog.manage_uom_conversion`). Lines keep a snapshot — `purchase_uom`, `purchase_quantity`, `purchase_unit_price` (PO) / `purchase_unit_cost` (GR), `conversion_factor` — and the base figures `uom`, `ordered_quantity` / `received_quantity`, `unit_cost`.
+  - Base quantity = quantity × factor, exact (`UOM_CONVERSION_INVALID` otherwise).
+  - `line_total` / `line_cost` = quantity × unit price, rounded to 4 decimals.
+  - `unit_cost` (per base unit, the lot/HPP cost basis) = price ÷ factor, half-up to 4 decimals.
+  - A receipt against a PO line counted in the PO line's unit uses the PO line's conversion snapshot and defaults its cost to the agreed price.
+- **Quality split.** Disposition `QUARANTINE` → RECEIPT into the QUARANTINE bucket (held, not sellable; released with `POST /inventory/recoveries` `from_bucket: QUARANTINE`). E.g. 100 received = ACCEPT 95 + QUARANTINE 5.
+- **Read additions (additive).** PO: `supplier{}`, `node{}`, `lines[].product{}`, `confirmed_at`, `cancelled_at`, `closed_at`, `close_reason_code`, `close_note`, `receiving{ lines_total, lines_fully_received, lines_with_receipts, receipts, posted_receipts }`. GR: `supplier{}`, `node{}`, `purchase_order{ id, number, status }`, `lines[].product{}`, `lines[].lot{ id, number }`. `GET /purchase-orders?status=OPEN` = CONFIRMED + PARTIALLY_RECEIVED.
+- **Owner views.** Activity adds `PURCHASE_ORDER_CONFIRMED`, `PURCHASE_ORDER_CLOSED` (detail = reason code), `PURCHASE_ORDER_CANCELLED`. Dashboard adds `purchasing.open_orders_now{ count, partially_received }` (current) and `received_quantity[].quarantine`.
+- **Permissions.** `procurement.close`, `procurement.cancel`, `procurement.reverse` (GR reversal), `catalog.manage_uom_conversion`. Routine actions (create, edit, confirm, receive, post) need none, per the registry rule. OWNER has `*`.
+
 ### 9.4 Sales, payments, returns
 - `POST /sales` `{ customer_id?, node_id, business_date?, notes?, lines: [{ product_id, quantity, unit_price, discount?, uom? }], confirm?: bool, payments?: [{ method, amount, reference?, paid_at? }] }`.
   `confirm=false` → 201 DRAFT; `confirm=true` → 201 CONFIRMED/COMPLETED in one transaction (stock leaves FIFO by lot, payments recorded, credit checked).
@@ -224,6 +240,7 @@ Kept in sync by `MobileApiContractTest::test_every_api_route_is_documented_in_th
 | POST | `goods-receipts` | bearer | yes | GoodsReceiptController@store |
 | GET | `goods-receipts/{id}` | bearer | — | GoodsReceiptController@show |
 | POST | `goods-receipts/{id}/cancel` | bearer | yes | GoodsReceiptController@cancel |
+| PATCH | `goods-receipts/{id}` | bearer | yes | GoodsReceiptController@update |
 | POST | `goods-receipts/{id}/post` | bearer | yes | GoodsReceiptController@post |
 | GET | `goods-receipts/{id}/print` | bearer | — | PrintController@goodsReceipt |
 | POST | `goods-receipts/{id}/reverse` | bearer | yes | GoodsReceiptController@reverse |
@@ -271,6 +288,8 @@ Kept in sync by `MobileApiContractTest::test_every_api_route_is_documented_in_th
 | GET | `products` | bearer | — | ProductController@index |
 | POST | `products` | bearer | yes | ProductController@store |
 | GET | `products/{id}` | bearer | — | ProductController@show |
+| GET | `products/{id}/uom-conversions` | bearer | — | ProductUomConversionController@index |
+| PUT | `products/{id}/uom-conversions/{uom}` | bearer | yes | ProductUomConversionController@put |
 | PATCH | `products/{id}` | bearer | yes | ProductController@update |
 | POST | `products/{id}/activate` | bearer | yes | ProductController@activate |
 | POST | `products/{id}/deactivate` | bearer | yes | ProductController@deactivate |
@@ -278,6 +297,8 @@ Kept in sync by `MobileApiContractTest::test_every_api_route_is_documented_in_th
 | POST | `purchase-orders` | bearer | yes | PurchaseOrderController@store |
 | GET | `purchase-orders/{id}` | bearer | — | PurchaseOrderController@show |
 | POST | `purchase-orders/{id}/cancel` | bearer | yes | PurchaseOrderController@cancel |
+| POST | `purchase-orders/{id}/close` | bearer | yes | PurchaseOrderController@close |
+| PATCH | `purchase-orders/{id}` | bearer | yes | PurchaseOrderController@update |
 | POST | `purchase-orders/{id}/confirm` | bearer | yes | PurchaseOrderController@confirm |
 | GET | `purchase-orders/{id}/print` | bearer | — | PrintController@purchaseOrder |
 | GET | `receivables` | bearer | — | ReceivableController@bySale |

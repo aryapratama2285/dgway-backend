@@ -13,6 +13,7 @@ use App\Domain\Shared\Money\Money;
 use App\Domain\Shared\Quantity\Quantity;
 use App\Domain\Shared\Text\Notes;
 use App\Domain\Shared\Time\BusinessDate;
+use DateTimeImmutable;
 
 /**
  * A commitment to buy from a supplier, to be received at a node.
@@ -39,8 +40,10 @@ final class PurchaseOrder extends AggregateRoot
         private PurchaseOrderStatus $status,
         private ?string $notes,
         private ?string $cancelReason,
+        private ?PurchaseOrderLifecycle $lifecycle = null,
     ) {
         parent::__construct($id, $version);
+        $this->lifecycle ??= new PurchaseOrderLifecycle();
         foreach ($lines as $line) {
             $this->lines[$line->id->value] = $line;
         }
@@ -48,6 +51,31 @@ final class PurchaseOrder extends AggregateRoot
 
     /** @param list<PurchaseOrderLine> $lines */
     public static function draft(Id $id, DocumentNumber $number, Id $supplierId, Id $nodeId, BusinessDate $businessDate, array $lines, ?string $notes = null): self
+    {
+        $currency = self::assertLines($lines);
+
+        return new self($id, 0, $number, $supplierId, $nodeId, $businessDate, $currency, $lines, PurchaseOrderStatus::DRAFT, Notes::clean($notes), null);
+    }
+
+    /**
+     * F4A: the edited version of a DRAFT order (same id, number and version; the
+     * repository replaces header and lines under optimistic locking). Every
+     * draft rule is checked again. Anything but a DRAFT is refused (409).
+     *
+     * @param  list<PurchaseOrderLine>  $lines
+     */
+    public static function revisedDraft(self $draft, Id $supplierId, Id $nodeId, BusinessDate $businessDate, array $lines, ?string $notes): self
+    {
+        if ($draft->status !== PurchaseOrderStatus::DRAFT) {
+            throw InvalidTransition::notEditable('Purchase order', $draft->status->value);
+        }
+        $currency = self::assertLines($lines);
+
+        return new self($draft->id(), $draft->version(), $draft->number, $supplierId, $nodeId, $businessDate, $currency, $lines, PurchaseOrderStatus::DRAFT, Notes::clean($notes), null);
+    }
+
+    /** @param list<PurchaseOrderLine> $lines */
+    private static function assertLines(array $lines): Currency
     {
         if ($lines === []) {
             throw InvariantViolation::because('PO_LINES_REQUIRED', 'A purchase order needs at least one line.');
@@ -69,21 +97,47 @@ final class PurchaseOrder extends AggregateRoot
             $seenNos[$line->lineNo] = true;
         }
 
-        return new self($id, 0, $number, $supplierId, $nodeId, $businessDate, $currency, $lines, PurchaseOrderStatus::DRAFT, Notes::clean($notes), null);
+        return $currency;
     }
 
     /** @param list<PurchaseOrderLine> $lines */
-    public static function reconstitute(Id $id, int $version, DocumentNumber $number, Id $supplierId, Id $nodeId, BusinessDate $businessDate, Currency $currency, array $lines, PurchaseOrderStatus $status, ?string $notes, ?string $cancelReason): self
+    public static function reconstitute(Id $id, int $version, DocumentNumber $number, Id $supplierId, Id $nodeId, BusinessDate $businessDate, Currency $currency, array $lines, PurchaseOrderStatus $status, ?string $notes, ?string $cancelReason, ?PurchaseOrderLifecycle $lifecycle = null): self
     {
-        return new self($id, $version, $number, $supplierId, $nodeId, $businessDate, $currency, $lines, $status, $notes, $cancelReason);
+        return new self($id, $version, $number, $supplierId, $nodeId, $businessDate, $currency, $lines, $status, $notes, $cancelReason, $lifecycle);
     }
 
-    public function confirm(): void
+    public function confirm(?DateTimeImmutable $at = null, ?string $by = null): void
     {
         $this->transitionTo(PurchaseOrderStatus::CONFIRMED);
+        $this->lifecycle->confirmedAt = $at ?? new DateTimeImmutable();
+        $this->lifecycle->confirmedBy = $by;
     }
 
-    public function cancel(string $reason): void
+    /**
+     * F4A: the procurement is finished although part of it may never arrive.
+     * Ordered quantities are NOT rewritten: ordered − received stays visible as
+     * the unfulfilled quantity. Only PARTIALLY_RECEIVED or RECEIVED orders close
+     * (a CONFIRMED order with nothing received is cancelled instead).
+     */
+    public function close(PurchaseOrderCloseReason $reason, ?string $note, DateTimeImmutable $at, ?string $by = null): void
+    {
+        if (! in_array($this->status, [PurchaseOrderStatus::PARTIALLY_RECEIVED, PurchaseOrderStatus::RECEIVED], true)) {
+            throw InvalidTransition::of('Purchase order', $this->status->value, PurchaseOrderStatus::CLOSED->value,
+                'Only PARTIALLY_RECEIVED or RECEIVED orders can be closed; cancel an order that received nothing.');
+        }
+        $note = Notes::clean($note);
+        $note = $note === null ? null : mb_substr($note, 0, 500);
+        if ($reason->requiresNote() && $note === null) {
+            throw InvariantViolation::because('CLOSE_REASON_REQUIRED', 'Closing for reason OTHER needs a note explaining why.', ['field' => 'note']);
+        }
+        $this->transitionTo(PurchaseOrderStatus::CLOSED);
+        $this->lifecycle->closedAt = $at;
+        $this->lifecycle->closedBy = $by;
+        $this->lifecycle->closeReason = $reason;
+        $this->lifecycle->closeNote = $note;
+    }
+
+    public function cancel(string $reason, ?DateTimeImmutable $at = null, ?string $by = null): void
     {
         $reason = trim($reason);
         if ($reason === '') {
@@ -96,6 +150,8 @@ final class PurchaseOrder extends AggregateRoot
         }
         $this->transitionTo(PurchaseOrderStatus::CANCELLED);
         $this->cancelReason = mb_substr($reason, 0, 500);
+        $this->lifecycle->cancelledAt = $at ?? new DateTimeImmutable();
+        $this->lifecycle->cancelledBy = $by;
     }
 
     /** Called when a goods receipt for this PO is posted. */
@@ -113,6 +169,10 @@ final class PurchaseOrder extends AggregateRoot
     {
         if ($this->status === PurchaseOrderStatus::CANCELLED || $this->status === PurchaseOrderStatus::DRAFT) {
             throw InvalidTransition::of('Purchase order', $this->status->value, 'CONFIRMED', 'No receipts can exist on this order.');
+        }
+        if ($this->status === PurchaseOrderStatus::CLOSED) {
+            throw InvalidTransition::of('Purchase order', $this->status->value, 'CONFIRMED',
+                'The order is CLOSED (terminal, read-only); its receipts can no longer be reversed. Return goods through a separate transaction.');
         }
         $this->line($lineId)->unreceive($quantity);
         $this->recomputeReceiptStatus();
@@ -152,6 +212,11 @@ final class PurchaseOrder extends AggregateRoot
         return $this->cancelReason;
     }
 
+    public function lifecycle(): PurchaseOrderLifecycle
+    {
+        return clone $this->lifecycle;
+    }
+
     public function snapshot(): array
     {
         return [
@@ -164,8 +229,12 @@ final class PurchaseOrder extends AggregateRoot
                 'line_no' => $l->lineNo, 'product_id' => $l->productId->value,
                 'ordered' => $l->orderedQuantity->toStorage(), 'received' => $l->receivedQuantity()->toStorage(),
                 'unit_cost' => $l->unitCost->toStorage(),
+                'purchase_uom' => $l->purchasedIn->quantity->uom->code, 'purchase_quantity' => $l->purchasedIn->quantity->toStorage(),
+                'purchase_unit_price' => $l->purchasedIn->unitPrice->toStorage(), 'conversion_factor' => $l->purchasedIn->conversion->factorToStorage(),
             ], $this->lines()),
             'cancel_reason' => $this->cancelReason,
+            'close_reason_code' => $this->lifecycle->closeReason?->value,
+            'close_note' => $this->lifecycle->closeNote,
         ];
     }
 

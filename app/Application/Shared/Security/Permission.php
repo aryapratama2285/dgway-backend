@@ -23,4 +23,13 @@ enum Permission: string
     case MANAGE_PRINT_SETTINGS = 'settings.manage_print';
     /** F3: correct stock through an ADJUSTMENT (delta or counted mode). Not needed for consumption or loss. */
     case ADJUST_STOCK = 'inventory.adjust';
+
+    /** F4A: finish a partially/fully received purchase order (CLOSED, terminal). */
+    case CLOSE_PURCHASE_ORDER = 'procurement.close';
+    /** F4A: cancel a purchase order that received nothing. */
+    case CANCEL_PURCHASE_ORDER = 'procurement.cancel';
+    /** F4A: reverse a POSTED goods receipt (compensating ledger movements). */
+    case REVERSE_GOODS_RECEIPT = 'procurement.reverse';
+    /** F4A: define or change a product's purchasing-unit conversions. */
+    case MANAGE_UOM_CONVERSION = 'catalog.manage_uom_conversion';
 }

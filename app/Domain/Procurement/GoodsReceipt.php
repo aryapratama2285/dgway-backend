@@ -58,6 +58,48 @@ final class GoodsReceipt extends AggregateRoot
         ?PurchaseOrder $purchaseOrder = null,
         ?string $notes = null,
     ): self {
+        $currency = self::assertLines($businessDate, $lines, $purchaseOrder);
+        self::matchPurchaseOrder($purchaseOrder, $supplierId, $nodeId, $lines, $currency);
+
+        return new self($id, 0, $number, $supplierId, $nodeId, $purchaseOrder?->id(), $businessDate, $receivedAt, $currency, array_values($lines), GoodsReceiptStatus::DRAFT, Notes::clean($notes), null, null, null);
+    }
+
+    /**
+     * F4A: the edited version of a DRAFT receipt (same id, number, supplier,
+     * node and purchase order; date, received_at, notes and lines may change).
+     * Every draft rule is checked again; anything but a DRAFT is refused (409).
+     *
+     * @param  list<GoodsReceiptLine>  $lines
+     */
+    public static function revisedDraft(self $draft, BusinessDate $businessDate, DateTimeImmutable $receivedAt, array $lines, ?PurchaseOrder $purchaseOrder, ?string $notes): self
+    {
+        if ($draft->status !== GoodsReceiptStatus::DRAFT) {
+            throw InvalidTransition::notEditable('Goods receipt', $draft->status->value);
+        }
+        $currency = self::assertLines($businessDate, $lines, $purchaseOrder);
+        self::matchPurchaseOrder($purchaseOrder, $draft->supplierId, $draft->nodeId, $lines, $currency);
+
+        return new self($draft->id(), $draft->version(), $draft->number, $draft->supplierId, $draft->nodeId, $draft->purchaseOrderId, $businessDate, $receivedAt, $currency,
+            array_values($lines), GoodsReceiptStatus::DRAFT, Notes::clean($notes), null, null, null);
+    }
+
+    /** @param list<GoodsReceiptLine> $lines */
+    private static function matchPurchaseOrder(?PurchaseOrder $purchaseOrder, Id $supplierId, Id $nodeId, array $lines, Currency $currency): void
+    {
+        if ($purchaseOrder !== null) {
+            self::assertMatchesPurchaseOrder($purchaseOrder, $supplierId, $nodeId, $lines, $currency);
+        } else {
+            foreach ($lines as $line) {
+                if ($line->purchaseOrderLineId !== null) {
+                    throw InvariantViolation::because('GR_PO_LINE_WITHOUT_PO', 'A direct receipt cannot reference purchase order lines.');
+                }
+            }
+        }
+    }
+
+    /** @param list<GoodsReceiptLine> $lines */
+    private static function assertLines(BusinessDate $businessDate, array $lines, ?PurchaseOrder $purchaseOrder): Currency
+    {
         if ($lines === []) {
             throw InvariantViolation::because('GR_LINES_REQUIRED', 'A goods receipt needs at least one line.');
         }
@@ -84,17 +126,7 @@ final class GoodsReceipt extends AggregateRoot
             }
         }
 
-        if ($purchaseOrder !== null) {
-            self::assertMatchesPurchaseOrder($purchaseOrder, $supplierId, $nodeId, $lines);
-        } else {
-            foreach ($lines as $line) {
-                if ($line->purchaseOrderLineId !== null) {
-                    throw InvariantViolation::because('GR_PO_LINE_WITHOUT_PO', 'A direct receipt cannot reference purchase order lines.');
-                }
-            }
-        }
-
-        return new self($id, 0, $number, $supplierId, $nodeId, $purchaseOrder?->id(), $businessDate, $receivedAt, $currency, array_values($lines), GoodsReceiptStatus::DRAFT, Notes::clean($notes), null, null, null);
+        return $currency;
     }
 
     /** @param list<GoodsReceiptLine> $lines */
@@ -163,6 +195,7 @@ final class GoodsReceipt extends AggregateRoot
                 'uom' => $l->receivedQuantity->uom->code,
                 'received' => $l->receivedQuantity->toStorage(),
                 'accepted' => $accepted->toStorage(),
+                'quarantined' => $l->quantityOf(DispositionType::QUARANTINE)->toStorage(),
                 'loss' => $l->quantityOf(DispositionType::LOSS)->toStorage(),
                 'returned_to_supplier' => $l->quantityOf(DispositionType::RETURN_TO_SUPPLIER)->toStorage(),
                 'regraded' => $l->quantityOf(DispositionType::REGRADE)->toStorage(),
@@ -214,24 +247,33 @@ final class GoodsReceipt extends AggregateRoot
     }
 
     /** @param list<GoodsReceiptLine> $lines */
-    private static function assertMatchesPurchaseOrder(PurchaseOrder $po, Id $supplierId, Id $nodeId, array $lines): void
+    private static function assertMatchesPurchaseOrder(PurchaseOrder $po, Id $supplierId, Id $nodeId, array $lines, Currency $currency): void
     {
         if (! $po->status()->acceptsReceipts()) {
             throw InvariantViolation::because('PO_NOT_RECEIVABLE', "Purchase order {$po->number} is {$po->status()->value}; only CONFIRMED or PARTIALLY_RECEIVED orders can be received.");
         }
-        if (! $po->supplierId->equals($supplierId) || ! $po->nodeId->equals($nodeId)) {
-            throw InvariantViolation::because('GR_PO_MISMATCH', 'Receipt supplier and node must match the purchase order.');
+        // one code for every mismatch; details.field says which (F4A, additive)
+        if (! $po->supplierId->equals($supplierId)) {
+            throw InvariantViolation::because('GR_PO_MISMATCH', 'Receipt supplier must match the purchase order.', ['field' => 'supplier_id']);
+        }
+        if (! $po->nodeId->equals($nodeId)) {
+            throw InvariantViolation::because('GR_PO_MISMATCH', 'Receipt node (destination) must match the purchase order.', ['field' => 'node_id']);
+        }
+        if (! $po->currency->equals($currency)) {
+            throw InvariantViolation::because('CURRENCY_MISMATCH', "Receipt currency {$currency->code} differs from the purchase order currency {$po->currency->code}.", ['field' => 'lines']);
         }
         foreach ($lines as $line) {
+            $i = $line->lineNo - 1;
             if ($line->purchaseOrderLineId === null) {
-                throw InvariantViolation::because('GR_PO_LINE_REQUIRED', "Line {$line->lineNo}: a receipt against a purchase order must reference its PO line.");
+                throw InvariantViolation::because('GR_PO_LINE_REQUIRED', "Line {$line->lineNo}: a receipt against a purchase order must reference its PO line.", ['field' => "lines.{$i}.purchase_order_line_id"]);
             }
             $poLine = $po->line($line->purchaseOrderLineId);
             if (! $poLine->productId->equals($line->productId)) {
-                throw InvariantViolation::because('GR_PO_MISMATCH', "Line {$line->lineNo}: product differs from the purchase order line.");
+                throw InvariantViolation::because('GR_PO_MISMATCH', "Line {$line->lineNo}: product differs from the purchase order line.", ['field' => "lines.{$i}.product_id"]);
             }
             if ($line->receivedQuantity->isGreaterThan($poLine->openQuantity())) {
-                throw InvariantViolation::because('OVER_RECEIPT', "Line {$line->lineNo}: received {$line->receivedQuantity->toStorage()} exceeds open quantity {$poLine->openQuantity()->toStorage()}. Over-receipt is not allowed.");
+                throw InvariantViolation::because('OVER_RECEIPT', "Line {$line->lineNo}: received {$line->receivedQuantity->toStorage()} exceeds open quantity {$poLine->openQuantity()->toStorage()}. Over-receipt is not allowed.",
+                    ['field' => "lines.{$i}.quantity", 'line_no' => $line->lineNo, 'open' => $poLine->openQuantity()->toStorage(), 'requested' => $line->receivedQuantity->toStorage(), 'uom' => $poLine->orderedQuantity->uom->code]);
             }
         }
     }

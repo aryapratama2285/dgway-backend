@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\MasterData\CategoryController;
 use App\Http\Controllers\Api\V1\MasterData\LocationController;
 use App\Http\Controllers\Api\V1\MasterData\NodeController;
 use App\Http\Controllers\Api\V1\MasterData\ProductController;
+use App\Http\Controllers\Api\V1\MasterData\ProductUomConversionController;
 use App\Http\Controllers\Api\V1\Procurement\GoodsReceiptController;
 use App\Http\Controllers\Api\V1\Procurement\PurchaseOrderController;
 use App\Http\Controllers\Api\V1\Sales\CustomerReturnController;
@@ -65,6 +66,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('categories/{id}', [CategoryController::class, 'show'])->whereUuid('id');
         Route::get('products', [ProductController::class, 'index']);
         Route::get('products/{id}', [ProductController::class, 'show'])->whereUuid('id');
+        Route::get('products/{id}/uom-conversions', [ProductUomConversionController::class, 'index'])->whereUuid('id');
         Route::get('business-partners', [BusinessPartnerController::class, 'index']);
         Route::get('business-partners/{id}', [BusinessPartnerController::class, 'show'])->whereUuid('id');
         Route::get('locations', [LocationController::class, 'index']);
@@ -146,6 +148,10 @@ Route::prefix('v1')->group(function (): void {
             Route::post('purchase-orders', [PurchaseOrderController::class, 'store']);
             Route::post('purchase-orders/{id}/confirm', [PurchaseOrderController::class, 'confirm'])->whereUuid('id');
             Route::post('purchase-orders/{id}/cancel', [PurchaseOrderController::class, 'cancel'])->whereUuid('id');
+            Route::patch('purchase-orders/{id}', [PurchaseOrderController::class, 'update'])->whereUuid('id');
+            Route::post('purchase-orders/{id}/close', [PurchaseOrderController::class, 'close'])->whereUuid('id');
+            Route::patch('goods-receipts/{id}', [GoodsReceiptController::class, 'update'])->whereUuid('id');
+            Route::put('products/{id}/uom-conversions/{uom}', [ProductUomConversionController::class, 'put'])->whereUuid('id')->where('uom', '[A-Za-z][A-Za-z0-9_]{0,15}');
 
             Route::post('goods-receipts', [GoodsReceiptController::class, 'store']);
             Route::post('goods-receipts/{id}/post', [GoodsReceiptController::class, 'post'])->whereUuid('id');

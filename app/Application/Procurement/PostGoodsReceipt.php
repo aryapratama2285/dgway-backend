@@ -76,7 +76,7 @@ final class PostGoodsReceipt
                 foreach ($gr->lines() as $line) {
                     $po->recordReceipt($line->purchaseOrderLineId, $line->receivedQuantity);
                 }
-                $this->orders->save($po);
+                $this->orders->save($po, $actor->userId);
             }
 
             [$lotByLine, $derivedLots] = $this->createLots($gr, $actor);

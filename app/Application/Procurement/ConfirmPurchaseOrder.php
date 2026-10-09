@@ -13,6 +13,7 @@ use App\Domain\Procurement\PurchaseOrder;
 use App\Domain\Procurement\PurchaseOrderRepository;
 use App\Domain\Shared\Identity\Actor;
 use App\Domain\Shared\Identity\Id;
+use App\Domain\Shared\Time\Clock;
 
 final class ConfirmPurchaseOrder
 {
@@ -21,6 +22,7 @@ final class ConfirmPurchaseOrder
         private readonly MasterDataGuard $guard,
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
+        private readonly Clock $clock,
     ) {
     }
 
@@ -38,8 +40,8 @@ final class ConfirmPurchaseOrder
             }
 
             $before = $po->snapshot();
-            $po->confirm();
-            $this->orders->save($po);
+            $po->confirm($this->clock->now(), $actor->userId);
+            $this->orders->save($po, $actor->userId);
             $this->audit->changed($actor, 'purchase_order.confirmed', 'purchase_order', $po, $before);
 
             return $po;

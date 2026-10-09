@@ -20,4 +20,7 @@ interface GoodsReceiptRepository
      * after draft. The actor is recorded as poster / reverser accordingly.
      */
     public function save(GoodsReceipt $receipt, ?string $actorUserId = null): void;
+
+    /** F4A: saves an edited DRAFT — date, received_at, notes and, when [$replaceLines], all lines and dispositions. */
+    public function saveDraft(GoodsReceipt $receipt, bool $replaceLines): void;
 }

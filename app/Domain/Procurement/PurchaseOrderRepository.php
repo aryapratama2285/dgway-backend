@@ -14,6 +14,9 @@ interface PurchaseOrderRepository
 
     public function add(PurchaseOrder $order, ?string $actorUserId = null): void;
 
-    /** Saves status, received quantities and notes (lines are fixed after draft). */
-    public function save(PurchaseOrder $order): void;
+    /** Saves status, lifecycle (who/when), received quantities and notes (lines are fixed after draft). */
+    public function save(PurchaseOrder $order, ?string $actorUserId = null): void;
+
+    /** F4A: saves an edited DRAFT — header terms and, when [$replaceLines], all lines (old draft lines removed). */
+    public function saveDraft(PurchaseOrder $order, bool $replaceLines): void;
 }

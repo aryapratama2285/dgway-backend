@@ -137,9 +137,10 @@ final class PurchaseOrderTest extends TestCase
                 $allowed = match ($from) {
                     S::DRAFT => in_array($to, [S::CONFIRMED, S::CANCELLED], true),
                     S::CONFIRMED => in_array($to, [S::PARTIALLY_RECEIVED, S::RECEIVED, S::CANCELLED], true),
-                    S::PARTIALLY_RECEIVED => in_array($to, [S::PARTIALLY_RECEIVED, S::RECEIVED, S::CONFIRMED], true),
-                    S::RECEIVED => in_array($to, [S::PARTIALLY_RECEIVED, S::CONFIRMED], true),
-                    S::CANCELLED => false,
+                    S::PARTIALLY_RECEIVED => in_array($to, [S::PARTIALLY_RECEIVED, S::RECEIVED, S::CONFIRMED, S::CLOSED], true),
+                    S::RECEIVED => in_array($to, [S::PARTIALLY_RECEIVED, S::CONFIRMED, S::CLOSED], true),
+                    // F4A: CLOSED is terminal like CANCELLED
+                    S::CLOSED, S::CANCELLED => false,
                 };
                 yield "{$from->value} → {$to->value}" => [$from, $to, $allowed];
             }

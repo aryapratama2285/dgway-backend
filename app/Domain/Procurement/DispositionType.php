@@ -8,6 +8,9 @@ namespace App\Domain\Procurement;
  * What happens to physically received quantity.
  *
  * ACCEPT              → AVAILABLE stock of the received product
+ * QUARANTINE          → held in QUARANTINE (F4A): received and owned, not yet
+ *                       sellable; released later by the RECOVERY operation or
+ *                       written off as a LOSS — never silently
  * LOSS                → written off (no recoverable value); traced in the ledger
  * RETURN_TO_SUPPLIER  → held in RETURN_PENDING (not sellable, not a loss)
  *                       until shipped back or recovered
@@ -20,6 +23,7 @@ namespace App\Domain\Procurement;
 enum DispositionType: string
 {
     case ACCEPT = 'ACCEPT';
+    case QUARANTINE = 'QUARANTINE';
     case LOSS = 'LOSS';
     case RETURN_TO_SUPPLIER = 'RETURN_TO_SUPPLIER';
     case REGRADE = 'REGRADE';

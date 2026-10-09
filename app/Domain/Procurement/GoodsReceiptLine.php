@@ -19,6 +19,11 @@ use App\Domain\Shared\Time\BusinessDate;
  *
  * Cost: the purchase cost is for the whole received quantity
  * (lineCost = received × unitCost), whatever happens to it afterwards.
+ *
+ * F4A: [$purchasedIn] keeps the line as received in its purchasing unit (quantity,
+ * ACTUAL unit cost per that unit, conversion snapshot). receivedQuantity and
+ * unitCost (per base unit) are derived from it; lineCost = purchasing quantity ×
+ * purchasing unit cost (exact). Dispositions are always in the base unit.
  */
 final class GoodsReceiptLine
 {
@@ -35,8 +40,12 @@ final class GoodsReceiptLine
         public readonly ?BusinessDate $bestBeforeDate = null,
         public readonly ?BusinessDate $collectionDate = null,
         public readonly ?string $supplierReference = null,
+        ?PurchasedIn $purchasedIn = null,
     ) {
+        $this->purchasedIn = $purchasedIn ?? PurchasedIn::inBaseUnit($receivedQuantity, $unitCost);
     }
+
+    public readonly PurchasedIn $purchasedIn;
 
     public const SUPPLIER_REFERENCE_MAX = 60;
 
@@ -49,8 +58,12 @@ final class GoodsReceiptLine
      *   supplierReference  the supplier's own batch/reference text, only if the supplier really gave one.
      */
     public static function create(Id $id, int $lineNo, Id $productId, Quantity $received, Money $unitCost, array $dispositions, ?Id $purchaseOrderLineId = null,
-        ?BusinessDate $manufacturedDate = null, ?BusinessDate $bestBeforeDate = null, ?BusinessDate $collectionDate = null, ?string $supplierReference = null): self
+        ?BusinessDate $manufacturedDate = null, ?BusinessDate $bestBeforeDate = null, ?BusinessDate $collectionDate = null, ?string $supplierReference = null,
+        ?PurchasedIn $purchasedIn = null): self
     {
+        if ($purchasedIn !== null && (! $purchasedIn->baseQuantity()->equals($received) || ! $purchasedIn->baseUnitCost()->equals($unitCost))) {
+            throw InvariantViolation::because('UOM_CONVERSION_INVALID', "Line {$lineNo}: the base quantity/cost do not match the purchasing-unit terms.");
+        }
         if ($collectionDate !== null && $manufacturedDate !== null && $collectionDate->isBefore($manufacturedDate)) {
             throw InvariantViolation::because('COLLECTION_DATE_INVALID', "Line {$lineNo}: the collection date cannot be before the manufactured date.", ['field' => 'collection_date', 'rule' => 'not_before_manufactured']);
         }
@@ -66,7 +79,7 @@ final class GoodsReceiptLine
         self::assertMassBalance($lineNo, $productId, $received, $dispositions);
 
         return new self($id, $lineNo, $productId, $received, $unitCost, $purchaseOrderLineId, array_values($dispositions), $manufacturedDate, $bestBeforeDate,
-            $collectionDate, $supplierReference);
+            $collectionDate, $supplierReference, $purchasedIn);
     }
 
     private static function cleanReference(int $lineNo, ?string $ref): ?string
@@ -84,14 +97,16 @@ final class GoodsReceiptLine
 
     /** @param list<Disposition> $dispositions */
     public static function reconstitute(Id $id, int $lineNo, Id $productId, Quantity $received, Money $unitCost, array $dispositions, ?Id $purchaseOrderLineId,
-        ?BusinessDate $manufacturedDate = null, ?BusinessDate $bestBeforeDate = null, ?BusinessDate $collectionDate = null, ?string $supplierReference = null): self
+        ?BusinessDate $manufacturedDate = null, ?BusinessDate $bestBeforeDate = null, ?BusinessDate $collectionDate = null, ?string $supplierReference = null,
+        ?PurchasedIn $purchasedIn = null): self
     {
-        return new self($id, $lineNo, $productId, $received, $unitCost, $purchaseOrderLineId, $dispositions, $manufacturedDate, $bestBeforeDate, $collectionDate, $supplierReference);
+        return new self($id, $lineNo, $productId, $received, $unitCost, $purchaseOrderLineId, $dispositions, $manufacturedDate, $bestBeforeDate, $collectionDate, $supplierReference, $purchasedIn);
     }
 
+    /** Actual cost of the whole received quantity: purchasing quantity × actual purchasing unit cost. */
     public function lineCost(): Money
     {
-        return $this->unitCost->multipliedBy($this->receivedQuantity->value());
+        return $this->purchasedIn->total();
     }
 
     public function quantityOf(DispositionType $type): Quantity

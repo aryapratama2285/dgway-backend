@@ -17,4 +17,14 @@ final class InvalidTransition extends DomainException implements ConflictsWithCu
             ['document' => $document, 'from' => $from, 'to' => $to],
         );
     }
+
+    /** F4A: an edit of a document that is no longer DRAFT (409, same code as any stale-status action). */
+    public static function notEditable(string $document, string $status): self
+    {
+        return new self(
+            "{$document} is {$status}; only a DRAFT can be edited.",
+            'INVALID_STATUS_TRANSITION',
+            ['document' => $document, 'from' => $status, 'to' => $status, 'action' => 'edit'],
+        );
+    }
 }

@@ -17,6 +17,7 @@ declare(strict_types=1);
 use App\Application\Catalog\CreateProduct;
 use App\Application\Inventory\RecordInventoryOperation;
 use App\Application\Inventory\StockProjection;
+use App\Application\Procurement\ClosePurchaseOrder;
 use App\Application\Procurement\PostGoodsReceipt;
 use App\Application\Sales\ConfirmSale;
 use App\Application\Sales\ConfirmSaleWithCreditOverride;
@@ -122,6 +123,18 @@ try {
                 },
             );
             $say('DONE replayed='.($outcome->replayed ? 'true' : 'false'));
+            break;
+        }
+
+        // F4A: closes a purchase order and holds the transaction (PO row locked).
+        case 'hold-close-po': {
+            [, , $userId, $poId, $holdMs] = $argv;
+            $app->make(TransactionManager::class)->run(function () use ($app, $userId, $poId, $say, $holdMs): void {
+                $app->make(ClosePurchaseOrder::class)->execute(Actor::operator($userId, 'worker'), $poId, 'SUPPLIER_SHORTFALL');
+                $say('ACQUIRED');
+                usleep((int) $holdMs * 1000);
+            });
+            $say('DONE');
             break;
         }
 

@@ -121,6 +121,7 @@ final class MobileApiContractTest extends SalesTestCase
             // activity feed types, document/source types written in UPPER case, movement & bucket names used as data
             'PURCHASE_ORDER', 'GOODS_RECEIPT', 'CUSTOMER_RETURN', 'PAYMENT_REVERSAL', 'SALE_REVERSAL', 'GOODS_RECEIPT_REVERSAL', 'DIRECT_PURCHASE', 'PARTIALLY_PAID',
             'INVENTORY_ADJUSTMENT', // F3 activity feed type
+            'PURCHASE_ORDER_CONFIRMED', 'PURCHASE_ORDER_CLOSED', 'PURCHASE_ORDER_CANCELLED', // F4A activity feed types
             // read-model labels, not errors
             'UNATTRIBUTED_LEGACY', 'DUE_TODAY', 'NOT_YET_DUE',
             // A5-C print document types / scan match labels (data, not errors)

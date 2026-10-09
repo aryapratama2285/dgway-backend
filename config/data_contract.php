@@ -49,6 +49,10 @@ return [
         'personal_access_tokens' => ['context' => 'Identity', 'aggregate' => 'AccessToken', 'kind' => 'operational', 'migration' => 'discard'],
 
         // ── Catalog ──────────────────────────────────────────────────────
+        // F4A: per-product purchasing units; documents keep a snapshot, so a change never rewrites history
+        'product_uom_conversions' => ['context' => 'Catalog', 'aggregate' => 'ProductUomConversion', 'kind' => 'master', 'migration' => 'preserve',
+            'business_key' => 'product_id+uom_code',
+            'fingerprint' => ['id', 'product_id', 'uom_code', 'factor_to_base', 'is_active', 'created_at']],
         'uoms' => ['context' => 'Catalog', 'aggregate' => 'UnitOfMeasure', 'kind' => 'master', 'migration' => 'preserve', 'business_key' => 'code',
             'fingerprint' => ['id', 'code', 'name', 'precision', 'is_active']],
         'product_categories' => ['context' => 'Catalog', 'aggregate' => 'ProductCategory', 'kind' => 'master', 'migration' => 'preserve', 'business_key' => 'code',
@@ -72,16 +76,18 @@ return [
 
         // ── Procurement ──────────────────────────────────────────────────
         'purchase_orders' => ['context' => 'Procurement', 'aggregate' => 'PurchaseOrder', 'kind' => 'document', 'migration' => 'preserve', 'business_key' => 'number',
-            'fingerprint' => ['id', 'number', 'supplier_id', 'node_id', 'business_date', 'currency', 'status', 'cancel_reason', 'created_by', 'created_at']],
+            'fingerprint' => ['id', 'number', 'supplier_id', 'node_id', 'business_date', 'currency', 'status', 'cancel_reason', 'created_by', 'created_at'],
+            'fingerprint_additions' => ['f4a' => ['confirmed_at', 'confirmed_by', 'cancelled_at', 'cancelled_by', 'closed_at', 'closed_by', 'close_reason_code', 'close_note']]],
         'purchase_order_lines' => ['context' => 'Procurement', 'aggregate' => 'PurchaseOrder', 'kind' => 'line', 'migration' => 'preserve',
-            'fingerprint' => ['id', 'purchase_order_id', 'line_no', 'product_id', 'uom_code', 'ordered_quantity', 'received_quantity', 'unit_cost', 'line_total']],
+            'fingerprint' => ['id', 'purchase_order_id', 'line_no', 'product_id', 'uom_code', 'ordered_quantity', 'received_quantity', 'unit_cost', 'line_total'],
+            'fingerprint_additions' => ['f4a' => ['purchase_uom_code', 'purchase_quantity', 'purchase_unit_price', 'conversion_factor']]],
         'goods_receipts' => ['context' => 'Procurement', 'aggregate' => 'GoodsReceipt', 'kind' => 'document', 'migration' => 'preserve', 'business_key' => 'number',
             'fingerprint' => ['id', 'number', 'supplier_id', 'node_id', 'purchase_order_id', 'business_date', 'received_at', 'currency', 'status',
                 'posted_at', 'reversed_at', 'status_reason', 'created_by', 'posted_by', 'reversed_by', 'created_at']],
         'goods_receipt_lines' => ['context' => 'Procurement', 'aggregate' => 'GoodsReceipt', 'kind' => 'line', 'migration' => 'preserve',
             'fingerprint' => ['id', 'goods_receipt_id', 'line_no', 'product_id', 'uom_code', 'received_quantity', 'unit_cost', 'line_cost', 'purchase_order_line_id'],
             'fingerprint_added' => ['manufactured_date', 'best_before_date'],
-            'fingerprint_additions' => ['a5c' => ['collection_date', 'supplier_reference']]],
+            'fingerprint_additions' => ['a5c' => ['collection_date', 'supplier_reference'], 'f4a' => ['purchase_uom_code', 'purchase_quantity', 'purchase_unit_cost', 'conversion_factor']]],
         'goods_receipt_dispositions' => ['context' => 'Procurement', 'aggregate' => 'GoodsReceipt', 'kind' => 'line', 'migration' => 'preserve',
             'fingerprint' => ['id', 'goods_receipt_line_id', 'disposition_type', 'quantity', 'target_product_id', 'reason']],
 
@@ -93,7 +99,7 @@ return [
         'inventory_lots' => ['context' => 'Inventory', 'aggregate' => 'InventoryLot', 'kind' => 'append_only', 'migration' => 'preserve', 'business_key' => 'number',
             'fingerprint' => ['id', 'number', 'origin', 'product_id', 'node_id', 'uom_code', 'original_quantity', 'parent_lot_id', 'supplier_id', 'goods_receipt_id',
                 'goods_receipt_line_id', 'source_document_type', 'source_document_id', 'business_date', 'received_at', 'manufactured_date', 'best_before_date', 'created_by'],
-            'fingerprint_additions' => ['a5c' => ['collection_date', 'supplier_reference']]],
+            'fingerprint_additions' => ['a5c' => ['collection_date', 'supplier_reference'], 'f4a' => ['purchase_uom_code', 'purchase_quantity', 'purchase_unit_cost', 'conversion_factor']]],
         'stock_lot_balances' => ['context' => 'Inventory', 'aggregate' => 'LotBalance', 'kind' => 'projection', 'migration' => 'rebuild'],
         'inventory_operations' => ['context' => 'Inventory', 'aggregate' => 'InventoryOperation', 'kind' => 'append_only', 'migration' => 'preserve', 'business_key' => 'number',
             'fingerprint' => ['id', 'number', 'operation_type', 'node_id', 'product_id', 'target_product_id', 'quantity', 'uom_code', 'from_bucket',
