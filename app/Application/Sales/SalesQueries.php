@@ -39,4 +39,12 @@ interface SalesQueries
 
     /** Display labels (code, name) for a customer, null for walk-in. @return array<string, mixed>|null */
     public function customerLabel(?string $customerId): ?array;
+
+    /**
+     * F4B: display labels of products (sale detail lines), by id.
+     *
+     * @param  list<string>  $productIds
+     * @return array<string, array{id: string, sku: string, name: string}>
+     */
+    public function productLabels(array $productIds): array;
 }

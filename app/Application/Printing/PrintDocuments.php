@@ -20,7 +20,7 @@ final class PrintDocuments
 {
     public const SCHEMA_VERSION = 1;
 
-    private const METHOD_LABELS = ['CASH' => 'Tunai', 'BANK_TRANSFER' => 'Transfer Bank', 'QRIS' => 'QRIS'];
+    private const METHOD_LABELS = ['CASH' => 'Tunai', 'BANK_TRANSFER' => 'Transfer Bank', 'QRIS' => 'QRIS', 'OTHER' => 'Lainnya'];
 
     private const NOTICES = [
         'DRAFT' => 'BELUM FINAL — BUKAN BUKTI PEMBAYARAN',

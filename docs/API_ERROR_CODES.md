@@ -275,3 +275,11 @@ The "meaning" column is taken from the server message (‹…› = value filled 
 | `ACCESS_DENIED` | 403 | Also for close (`procurement.close`), cancel (`procurement.cancel`), goods-receipt reversal (`procurement.reverse`) and conversions (`catalog.manage_uom_conversion`) without the permission. |
 
 `PURCHASE_ORDER_CONFIRMED`, `PURCHASE_ORDER_CLOSED` and `PURCHASE_ORDER_CANCELLED` are activity-feed **types** (data), not error codes.
+
+## F4B additions (sales & basic finance)
+
+| Code | HTTP | When |
+| --- | --- | --- |
+| `PAYMENT_REFERENCE_REQUIRED` | 422 | A payment with method `OTHER` (at `POST /sales` with payments, `POST /sales/{id}/confirm`, the credit-override confirm, or `POST /sales/{id}/payments`) has neither a `reference` nor `notes` describing it (`details.field` = `…reference`). Also enforced by `pay_other_described_check`. |
+| `PAYMENT_METHOD_INVALID` | 422 | Unchanged code; the accepted methods are now `CASH`, `BANK_TRANSFER`, `QRIS`, `OTHER`. |
+| `ACCESS_DENIED` | 403 | Also for `POST /sales/{id}/reverse` (`sales.reverse`), `POST /payments/{id}/reverse` (`payments.reverse`) and `POST /sales/{id}/returns` (`sales.return`) without the permission. |

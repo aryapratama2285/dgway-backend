@@ -183,3 +183,26 @@ it is the dedicated command `POST /sales/{id}/confirm-with-credit-override`
 - the customer's `credit_limit` is not modified;
 - same customer credit lock as a normal confirmation → concurrent overrides serialize and each sees the other's exposure (`CreditLimitOverrideTest`, OS processes);
 - audit `sale.credit_limit_overridden` with `after = { sale_id, sale_number, customer_id, approved_by, reason, credit_limit, exposure_before, requested_credit, exposure_after, overridden_at }`, actor, and `context = { idempotency_key, command, request_id, sale }`.
+
+## F4B — payment method OTHER, lots on the sale detail, correction permissions
+
+**OTHER.** A fourth manual method for settlements that are not cash, transfer or
+QRIS (e.g. "Potong deposit customer", "Settlement manual"). It is never
+anonymous: the payment's existing `reference` or `notes` must describe it
+(`PAYMENT_REFERENCE_REQUIRED`, plus CHECK `pay_other_described_check`). No new
+column. A refund with OTHER needs nothing extra — a return's `reason` is already
+mandatory. Migration `2026_10_10_100100_f4b_payment_method_other` widens
+`pay_method_check` and `cr_refund_method_check`; its `down()` refuses once OTHER
+rows exist.
+
+**Which lots supplied a sale.** `GET /sales/{id}` adds, per line, `product` and
+`lots[{lot_id, lot_number, consumed, returned}]` from `SaleLotConsumption`
+(the ledger; nothing new is stored). Example: lots A 60 KG and B 30 KG, sale
+70 KG → A 60, B 10.
+
+**Corrections need a permission.** Reversing a sale (`sales.reverse`), reversing
+a payment (`payments.reverse`) and recording a customer return (`sales.return`)
+move money or stock after the fact, so they are no longer open to every active
+operator. The Authorizer checks them before the transaction (OWNER: `*`).
+Routine work — create, confirm, pay, cancel a draft — needs no permission;
+the credit-limit override keeps `sales.override_credit_limit`.

@@ -6,6 +6,8 @@ namespace App\Application\Sales;
 
 use App\Application\Shared\Audit\AuditTrail;
 use App\Application\Shared\Identity\IdentityGenerator;
+use App\Application\Shared\Security\Authorizer;
+use App\Application\Shared\Security\Permission;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Sales\PaymentRepository;
 use App\Domain\Sales\PaymentReversal;
@@ -30,11 +32,14 @@ final class ReversePayment
         private readonly Clock $clock,
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
+        private readonly Authorizer $authorizer,
     ) {
     }
 
     public function execute(Actor $actor, string $paymentId, string $reason): SaleCommandResult
     {
+        $this->authorizer->authorize($actor, Permission::REVERSE_PAYMENT);
+
         return $this->tx->run(function () use ($actor, $paymentId, $reason): SaleCommandResult {
             $saleId = $this->payments->get(Id::fromString($paymentId))->saleId;
             $sale = $this->sales->getForUpdate($saleId);

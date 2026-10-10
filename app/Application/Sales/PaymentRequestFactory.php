@@ -38,7 +38,11 @@ final class PaymentRequestFactory
     public function make(Actor $actor, array $in, Currency $currency, string $field = ''): PaymentRequest
     {
         $method = PaymentMethod::tryFrom(strtoupper(trim((string) ($in['method'] ?? ''))))
-            ?? throw InvariantViolation::because('PAYMENT_METHOD_INVALID', "Unknown payment method '".($in['method'] ?? '')."'. Use CASH, BANK_TRANSFER or QRIS.", ['field' => $field.'method']);
+            ?? throw InvariantViolation::because('PAYMENT_METHOD_INVALID', "Unknown payment method '".($in['method'] ?? '')."'. Use ".implode(', ', PaymentMethod::codes()).'.', ['field' => $field.'method']);
+        if ($method->requiresDescription() && trim((string) ($in['reference'] ?? '')) === '' && trim((string) ($in['notes'] ?? '')) === '') {
+            // F4B: an OTHER payment must say what it was (e.g. "Potong deposit customer")
+            throw InvariantViolation::because('PAYMENT_REFERENCE_REQUIRED', 'A payment with method OTHER needs a reference or notes describing it.', ['field' => $field.'reference']);
+        }
         $date = empty($in['business_date']) ? $this->clock->today() : BusinessDate::fromString((string) $in['business_date']);
         $paidAt = empty($in['paid_at']) ? $this->clock->now() : new DateTimeImmutable((string) $in['paid_at']);
 

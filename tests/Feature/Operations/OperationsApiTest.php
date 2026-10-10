@@ -91,7 +91,8 @@ final class OperationsApiTest extends SalesTestCase
         $this->assertSame(['id' => $this->node, 'code' => 'DG-WAY-PRIMARY', 'name' => 'DG-WAY-PRIMARY'], $c['default_node']);
         $this->assertNull($c['walk_in_customer'], 'created by dgway:bootstrap');
         $this->assertSame(['default_per_page' => 25, 'max_per_page' => 100], $c['pagination']);
-        $this->assertSame(['CASH', 'BANK_TRANSFER', 'QRIS'], $c['payment_methods']);
+        // F4B: OTHER added (documented behaviour change, docs/SALES_AND_RECEIVABLES.md §F4B)
+        $this->assertSame(['CASH', 'BANK_TRANSFER', 'QRIS', 'OTHER'], $c['payment_methods']);
         $this->assertSame('Idempotency-Key', $c['idempotency']['header']);
     }
 

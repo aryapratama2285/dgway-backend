@@ -12,6 +12,8 @@ use App\Application\Shared\Command\ExpectedVersion;
 use App\Application\Shared\Document\DocumentNumberGenerator;
 use App\Application\Shared\Identity\IdentityGenerator;
 use App\Application\Shared\MasterData\MasterDataGuard;
+use App\Application\Shared\Security\Authorizer;
+use App\Application\Shared\Security\Permission;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Catalog\ProductRepository;
 use App\Domain\Network\NodeCapability;
@@ -52,12 +54,15 @@ final class RecordCustomerReturn
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
         private readonly AuditRecorder $recorder,
+        private readonly Authorizer $authorizer,
     ) {
     }
 
     /** @param list<ReturnLineInput> $lines */
     public function execute(Actor $actor, string $saleId, array $lines, string $reason, ?string $refundMethod = null, ?int $expectedVersion = null): SaleCommandResult
     {
+        $this->authorizer->authorize($actor, Permission::RECORD_CUSTOMER_RETURN);
+
         return $this->tx->run(function () use ($actor, $saleId, $lines, $reason, $refundMethod, $expectedVersion): SaleCommandResult {
             $sale = $this->sales->getForUpdate(Id::fromString($saleId));
             ExpectedVersion::check('Sale', $sale, $expectedVersion);

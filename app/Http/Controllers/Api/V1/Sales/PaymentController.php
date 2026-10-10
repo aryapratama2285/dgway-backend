@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Sales;
 use App\Application\Sales\ReversePayment;
 use App\Application\Sales\SaleCommandResult;
 use App\Application\Sales\SalesQueries;
+use App\Domain\Sales\PaymentMethod;
 use App\Domain\Sales\PaymentRepository;
 use App\Domain\Shared\Identity\Actor;
 use App\Domain\Shared\Identity\Id;
@@ -22,7 +23,7 @@ final class PaymentController extends ApiController
     public function index(Request $request, SalesQueries $queries): JsonResponse
     {
         $f = $request->validate([
-            'method' => ['nullable', Rule::in(['CASH', 'BANK_TRANSFER', 'QRIS'])],
+            'method' => ['nullable', Rule::in(PaymentMethod::codes())],
             'status' => ['nullable', Rule::in(['POSTED', 'REVERSED'])],
             'sale_id' => ['nullable', 'uuid'], 'customer_id' => ['nullable', 'uuid'],
             'date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d'],

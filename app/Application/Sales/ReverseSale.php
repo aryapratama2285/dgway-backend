@@ -11,6 +11,8 @@ use App\Application\Shared\Audit\AuditRecorder;
 use App\Application\Shared\Audit\AuditTrail;
 use App\Application\Shared\Command\ExpectedVersion;
 use App\Application\Shared\Identity\IdentityGenerator;
+use App\Application\Shared\Security\Authorizer;
+use App\Application\Shared\Security\Permission;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Sales\Payment;
 use App\Domain\Sales\PaymentRepository;
@@ -39,11 +41,14 @@ final class ReverseSale
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
         private readonly AuditRecorder $recorder,
+        private readonly Authorizer $authorizer,
     ) {
     }
 
     public function execute(Actor $actor, string $saleId, string $reason, bool $reversePayments = false, ?int $expectedVersion = null): Sale
     {
+        $this->authorizer->authorize($actor, Permission::REVERSE_SALE);
+
         return $this->tx->run(function () use ($actor, $saleId, $reason, $reversePayments, $expectedVersion): Sale {
             $sale = $this->sales->getForUpdate(Id::fromString($saleId));
             ExpectedVersion::check('Sale', $sale, $expectedVersion);

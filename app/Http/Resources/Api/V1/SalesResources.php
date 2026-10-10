@@ -18,9 +18,10 @@ final class SalesResources
      * @param  array<string, mixed>|null  $customer  label (code, name, phone) or null for walk-in
      * @param  list<Payment>|null  $payments
      * @param  list<CustomerReturn>|null  $returns
+     * @param  array<string, array{product: ?array<string, mixed>, lots: list<array<string, string>>}>|null  $lineDetails  F4B, by sale line id (sale detail only)
      * @return array<string, mixed>
      */
-    public static function sale(Sale $s, ?array $customer, BusinessDate $today, ?array $payments = null, ?array $returns = null): array
+    public static function sale(Sale $s, ?array $customer, BusinessDate $today, ?array $payments = null, ?array $returns = null, ?array $lineDetails = null): array
     {
         $out = [
             'id' => $s->id()->value,
@@ -61,7 +62,11 @@ final class SalesResources
                 'returned_quantity' => $l->returnedQuantity()->toStorage(),
                 'returned_amount' => $l->returnedAmount()->toStorage(),
                 'returnable_quantity' => $l->returnableQuantity()->toStorage(),
-            ], $s->lines()),
+            ] + ($lineDetails === null ? [] : [
+                'product' => $lineDetails[$l->id->value]['product'] ?? null,
+                // lots consumed FIFO by this line (allocation order) and how much of each came back
+                'lots' => $lineDetails[$l->id->value]['lots'] ?? [],
+            ]), $s->lines()),
             'version' => $s->version(),
         ];
         if ($payments !== null) {

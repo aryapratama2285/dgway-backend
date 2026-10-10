@@ -7,6 +7,7 @@ namespace App\Infrastructure\Persistence\Query;
 use App\Application\Sales\SalesQueries;
 use App\Application\Shared\Query\Page;
 use App\Application\Shared\Query\PageRequest;
+use App\Domain\Sales\PaymentMethod;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Query\Builder;
 
@@ -244,7 +245,7 @@ final class DbSalesQueries implements SalesQueries
         SQL, [$dateFrom, $dateTo]);
         $netSales = (string) $this->db->selectOne('SELECT (?::numeric - ?::numeric)::numeric(19,4) AS v', [$s->grand_total, $returns->value])->v;
 
-        $methods = ['CASH', 'BANK_TRANSFER', 'QRIS'];
+        $methods = PaymentMethod::codes();
         $byMethod = array_fill_keys($methods, ['received' => '0.0000', 'reversed' => '0.0000', 'refunded' => '0.0000']);
         foreach ($this->db->select('SELECT method, sum(amount)::numeric(19,4) AS v, count(*) AS n FROM payments WHERE business_date BETWEEN ?::date AND ?::date GROUP BY method', [$dateFrom, $dateTo]) as $r) {
             $byMethod[$r->method]['received'] = (string) $r->v;
@@ -331,6 +332,16 @@ final class DbSalesQueries implements SalesQueries
         $r = $this->db->table('business_partners')->where('id', $customerId)->first(['id', 'code', 'name', 'phone']);
 
         return $r === null ? null : ['id' => $r->id, 'code' => $r->code, 'name' => $r->name, 'phone' => $r->phone];
+    }
+
+    public function productLabels(array $productIds): array
+    {
+        $out = [];
+        foreach ($this->db->table('products')->whereIn('id', array_values(array_unique($productIds)))->get(['id', 'sku', 'name']) as $r) {
+            $out[$r->id] = ['id' => $r->id, 'sku' => $r->sku, 'name' => $r->name];
+        }
+
+        return $out;
     }
 
     /** @param array<string, mixed> $filters */

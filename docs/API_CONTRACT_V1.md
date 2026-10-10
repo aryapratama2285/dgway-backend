@@ -86,7 +86,7 @@ The app reads these at start-up instead of hard-coding them (the node UUID diffe
   "default_node": { "id": "…", "code": "DG-WAY-PRIMARY", "name": "DG Way Primary Node" },
   "walk_in_customer": { "id": "…", "code": "WALK-IN", "name": "Pelanggan Umum (Walk-in)" },
   "pagination": { "default_per_page": 25, "max_per_page": 100 },
-  "payment_methods": ["CASH", "BANK_TRANSFER", "QRIS"],
+  "payment_methods": ["CASH", "BANK_TRANSFER", "QRIS", "OTHER"],
   "stock_buckets": ["AVAILABLE", "QUARANTINE", "RETURN_PENDING"],
   "idempotency": { "header": "Idempotency-Key", "format": "UUID", "retention_days": 30 } } }
 ```
@@ -140,6 +140,13 @@ Commands (Idempotency-Key): `POST /products`, `PATCH /products/{id}` (+`expected
 - `POST /sales/{id}/returns` `{ reason, refund_method?, lines: [{ sale_line_id, quantity, disposition: RETURN_TO_AVAILABLE|RETURN_TO_QUARANTINE|LOSS }] }` → 201 return; stock goes back into the lots the customer received (BATCH_LOT_MODEL.md §6).
 - `POST /sales/{id}/cancel` `{ reason }` (draft), `POST /sales/{id}/reverse` `{ reason, reverse_payments? }` (final, no returns).
 - Reads: `GET /sales?status=&payment_status=&customer_id=&walk_in=&date_from=&date_to=&q=`, `GET /sales/{id}`, `GET /payments?sale_id=`, `GET /customer-returns`, `GET /receivables` (by sale), `GET /receivables/customers`, `GET /receivables/summary`, `GET /reports/daily|sales|sales-by-product`.
+
+### 9.4a Sales & basic finance (F4B)
+
+- **Payment method `OTHER`** next to `CASH`, `BANK_TRANSFER`, `QRIS` (payments and refund methods; `GET /config` → `payment_methods`, dashboard `payments.by_method.other`). An `OTHER` payment must carry a non-empty `reference` or `notes` (e.g. "Potong deposit customer") → 422 `PAYMENT_REFERENCE_REQUIRED`; also a DB CHECK.
+- **`GET /sales/{id}`** (detail only, additive): `lines[].product{ id, sku, name }` and `lines[].lots[{ lot_id, lot_number, consumed, returned }]` — the lots the line consumed FIFO, in allocation order, derived from the ledger (SALE movements not reversed; CUSTOMER_RETURN movements). Command responses and `GET /sales` are unchanged.
+- **Permissions** (403 `ACCESS_DENIED` without them; OWNER has `*`): `sales.reverse` (`POST /sales/{id}/reverse`), `payments.reverse` (`POST /payments/{id}/reverse`), `sales.return` (`POST /sales/{id}/returns`).
+- Unchanged: sale lifecycle (`DRAFT → CONFIRMED|COMPLETED`, `CANCELLED`, `REVERSED`), `payment_status` (`UNPAID|PARTIALLY_PAID|PAID|NONE`, separate from the status), receivable derivation, base-UOM-only sales (`UOM_NOT_BASE`), credit limit and override.
 
 ### 9.5 Inventory and lots
 - `GET /inventory/current?product_id&node_id` → `{ available, quarantine, return_pending, on_hand, ledger_on_hand, uom }`; `GET /inventory/balances`, `GET /inventory/movements`, `GET /inventory/integrity`.

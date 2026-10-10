@@ -13,7 +13,9 @@ use App\Application\Sales\RecordPayment;
 use App\Application\Sales\ReverseSale;
 use App\Application\Sales\SaleCommandResult;
 use App\Application\Sales\SalesQueries;
+use App\Application\Sales\SaleLotConsumption;
 use App\Domain\Sales\CustomerReturnRepository;
+use App\Domain\Sales\PaymentMethod;
 use App\Domain\Sales\PaymentRepository;
 use App\Domain\Sales\Sale;
 use App\Domain\Sales\SaleRepository;
@@ -29,7 +31,6 @@ use Illuminate\Validation\ValidationException;
 
 final class SaleController extends ApiController
 {
-    private const METHODS = ['CASH', 'BANK_TRANSFER', 'QRIS'];
 
     public function index(Request $request, SalesQueries $queries): JsonResponse
     {
@@ -44,12 +45,19 @@ final class SaleController extends ApiController
         return $this->paged($queries->sales($f, $this->pageRequest($request)), fn (array $row) => $row);
     }
 
-    public function show(string $id, SaleRepository $sales, PaymentRepository $payments, CustomerReturnRepository $returns, SalesQueries $queries, Clock $clock): JsonResponse
+    public function show(string $id, SaleRepository $sales, PaymentRepository $payments, CustomerReturnRepository $returns, SalesQueries $queries,
+        SaleLotConsumption $lots, Clock $clock): JsonResponse
     {
         $sale = $sales->get(Id::fromString($id));
+        // F4B (additive): product label and the lots each line consumed, derived from the ledger
+        $products = $queries->productLabels(array_map(fn ($l) => $l->productId->value, $sale->lines()));
+        $lineDetails = [];
+        foreach ($sale->lines() as $l) {
+            $lineDetails[$l->id->value] = ['product' => $products[$l->productId->value] ?? null, 'lots' => $lots->ofSaleLine($l->id)];
+        }
 
         return $this->single(SalesResources::sale($sale, $queries->customerLabel($sale->customerId?->value), $clock->today(),
-            $payments->paymentsOfSale($sale->id()), $returns->returnsOfSale($sale->id())));
+            $payments->paymentsOfSale($sale->id()), $returns->returnsOfSale($sale->id()), $lineDetails));
     }
 
     public function store(Request $request, CreateSale $create, SalesQueries $queries, Clock $clock): JsonResponse
@@ -139,7 +147,7 @@ final class SaleController extends ApiController
     {
         $v = $request->validate([
             'reason' => ['required', 'string', 'max:500'],
-            'refund_method' => ['nullable', Rule::in(self::METHODS)],
+            'refund_method' => ['nullable', Rule::in(PaymentMethod::codes())],
             'expected_version' => ['nullable', 'integer', 'min:1'],
             'lines' => ['required', 'array', 'min:1', 'max:100'],
             'lines.*.sale_line_id' => ['required', 'uuid'],
@@ -158,7 +166,7 @@ final class SaleController extends ApiController
     public static function paymentRules(string $prefix): array
     {
         return [
-            "{$prefix}method" => [$prefix === '' ? 'required' : 'required_with:payments', Rule::in(self::METHODS)],
+            "{$prefix}method" => [$prefix === '' ? 'required' : 'required_with:payments', Rule::in(PaymentMethod::codes())],
             "{$prefix}amount" => [$prefix === '' ? 'required' : 'required_with:payments', 'numeric', 'gt:0'],
             "{$prefix}reference" => ['nullable', 'string', 'max:100'],
             "{$prefix}notes" => ['nullable', 'string', 'max:500'],

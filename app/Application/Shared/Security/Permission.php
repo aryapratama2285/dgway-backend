@@ -32,4 +32,11 @@ enum Permission: string
     case REVERSE_GOODS_RECEIPT = 'procurement.reverse';
     /** F4A: define or change a product's purchasing-unit conversions. */
     case MANAGE_UOM_CONVERSION = 'catalog.manage_uom_conversion';
+
+    /** F4B: reverse a confirmed/completed sale (stock back through REVERSAL movements, payments reversed explicitly). */
+    case REVERSE_SALE = 'sales.reverse';
+    /** F4B: reverse one payment (the amount becomes owed again). */
+    case REVERSE_PAYMENT = 'payments.reverse';
+    /** F4B: record a customer return (stock back, credit/refund). */
+    case RECORD_CUSTOMER_RETURN = 'sales.return';
 }

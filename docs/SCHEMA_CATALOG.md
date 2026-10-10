@@ -293,7 +293,7 @@ Owner **Sales** · aggregate CustomerReturn · kind **append_only** · migration
 Constraints:
 - CHECK `cr_amounts_check`: `CHECK (((total_value >= (0)::numeric) AND (credit_amount >= (0)::numeric) AND (refund_amount >= (0)::numeric) AND (total_value = (credit_amount + refund_amount))))`
 - CHECK `cr_reason_check`: `CHECK ((length(TRIM(BOTH FROM reason)) > 0))`
-- CHECK `cr_refund_method_check`: `CHECK ((((refund_amount > (0)::numeric) = (refund_method IS NOT NULL)) AND ((refund_method IS NULL) OR ((refund_method)::text = ANY ((ARRAY['CASH'::character varying, 'BANK_TRANSFER'::character varying, 'QRIS'::character varying])::text[])))))`
+- CHECK `cr_refund_method_check`: `CHECK ((((refund_amount > (0)::numeric) = (refund_method IS NOT NULL)) AND ((refund_method IS NULL) OR ((refund_method)::text = ANY ((ARRAY['CASH'::character varying, 'BANK_TRANSFER'::character varying, 'QRIS'::character varying, 'OTHER'::character varying])::text[])))))`
 - FK `customer_returns_actor_user_id_foreign`: `FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE RESTRICT`
 - FK `customer_returns_customer_id_foreign`: `FOREIGN KEY (customer_id) REFERENCES business_partners(id) ON DELETE RESTRICT`
 - FK `customer_returns_node_id_foreign`: `FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE RESTRICT`
@@ -736,7 +736,8 @@ Owner **Payment** · aggregate Payment · kind **append_only** · migration **pr
 
 Constraints:
 - CHECK `pay_amount_check`: `CHECK ((amount > (0)::numeric))`
-- CHECK `pay_method_check`: `CHECK (((method)::text = ANY ((ARRAY['CASH'::character varying, 'BANK_TRANSFER'::character varying, 'QRIS'::character varying])::text[])))`
+- CHECK `pay_method_check`: `CHECK (((method)::text = ANY ((ARRAY['CASH'::character varying, 'BANK_TRANSFER'::character varying, 'QRIS'::character varying, 'OTHER'::character varying])::text[])))`
+- CHECK `pay_other_described_check`: `CHECK ((((method)::text <> 'OTHER'::text) OR (length(TRIM(BOTH FROM COALESCE(reference, ''::character varying))) > 0) OR (length(TRIM(BOTH FROM COALESCE(notes, ''::character varying))) > 0)))`
 - FK `payments_actor_user_id_foreign`: `FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE RESTRICT`
 - FK `payments_customer_id_foreign`: `FOREIGN KEY (customer_id) REFERENCES business_partners(id) ON DELETE RESTRICT`
 - FK `payments_sale_id_foreign`: `FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE RESTRICT`
