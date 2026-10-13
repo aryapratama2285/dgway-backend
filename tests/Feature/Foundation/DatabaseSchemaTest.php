@@ -54,7 +54,8 @@ final class DatabaseSchemaTest extends DatabaseTestCase
     {
         $uoms = DB::table('uoms')->orderBy('code')->pluck('precision', 'code')->all();
 
-        $this->assertSame(['IKAT' => 0, 'KG' => 3, 'PCS' => 0], $uoms);
+        // A2 baseline + F5A purchasing units (decision D2; their size is per product, not global)
+        $this->assertSame(['BOX' => 0, 'IKAT' => 0, 'KG' => 3, 'LITER' => 3, 'PACK' => 0, 'PCS' => 0, 'ROLL' => 0, 'TRAY' => 0], $uoms);
     }
 
     public function test_uom_precision_check_constraint(): void

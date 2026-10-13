@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\Network;
 
 use App\Application\Shared\Audit\AuditTrail;
+use App\Application\Shared\Security\Authorizer;
+use App\Application\Shared\Security\Permission;
 use App\Application\Shared\Command\ExpectedVersion;
 use App\Application\Shared\Command\Patch;
 use App\Application\Shared\Transaction\TransactionManager;
@@ -21,11 +23,14 @@ final class UpdateLocation
         private readonly LocationRepository $locations,
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
+        private readonly Authorizer $authorizer,
     ) {
     }
 
     public function execute(Actor $actor, string $locationId, Patch $patch, ?int $expectedVersion = null): Location
     {
+        $this->authorizer->authorizeIfOperator($actor, Permission::MANAGE_NETWORK);
+
         return $this->tx->run(function () use ($actor, $locationId, $patch, $expectedVersion): Location {
             $location = $this->locations->getForUpdate(Id::fromString($locationId));
             ExpectedVersion::check('Location', $location, $expectedVersion);

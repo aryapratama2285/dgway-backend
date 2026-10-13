@@ -115,8 +115,10 @@ final class CountedAdjustmentTest extends InventoryTestCase
         $this->assertSame(0, DB::table('inventory_operations')->count());
 
         $this->cmd('POST', 'inventory/consumptions', ['node_id' => $this->node, 'product_id' => $this->egg, 'quantity' => '1', 'reason_code' => 'SAMPLE'])->assertCreated();
-        $this->cmd('POST', 'inventory/losses', ['node_id' => $this->node, 'product_id' => $this->egg, 'quantity' => '1', 'reason' => 'pecah'])->assertCreated();
-        $this->assertSame('8.0000', $this->stock()['available']);
+        // F5A (decision D1): a loss is a stock correction too — it needs inventory.correct
+        $this->cmd('POST', 'inventory/losses', ['node_id' => $this->node, 'product_id' => $this->egg, 'quantity' => '1', 'reason' => 'pecah'])
+            ->assertStatus(403)->assertJsonPath('error.details.permission', 'inventory.correct');
+        $this->assertSame('9.0000', $this->stock()['available']);
     }
 
     public function test_adjustments_are_audited_and_visible_in_history_and_activity(): void

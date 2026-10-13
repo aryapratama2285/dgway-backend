@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\Partner;
 
 use App\Application\Shared\Audit\AuditTrail;
+use App\Application\Shared\Security\Authorizer;
+use App\Application\Shared\Security\Permission;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Partner\BusinessPartner;
 use App\Domain\Partner\BusinessPartnerRepository;
@@ -19,6 +21,7 @@ final class AssignPartnerRole
         private readonly BusinessPartnerRepository $partners,
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
+        private readonly Authorizer $authorizer,
     ) {
     }
 
@@ -29,10 +32,15 @@ final class AssignPartnerRole
             $partner = $this->partners->getForUpdate(Id::fromString($partnerId));
             $before = $partner->snapshot();
 
-            match ($role) {
-                PartnerRole::SUPPLIER => $partner->becomeSupplier(PartnerInput::supplierRole($roleData)),
-                PartnerRole::CUSTOMER => $partner->becomeCustomer(PartnerInput::customerRole($roleData)),
-            };
+            if ($role === PartnerRole::CUSTOMER) {
+                $customerRole = PartnerInput::customerRole($roleData);
+                if (PartnerInput::grantsCredit($customerRole->terms())) {
+                    $this->authorizer->authorizeIfOperator($actor, Permission::MANAGE_CUSTOMER_CREDIT);
+                }
+                $partner->becomeCustomer($customerRole);
+            } else {
+                $partner->becomeSupplier(PartnerInput::supplierRole($roleData));
+            }
 
             $this->partners->save($partner);
             $this->audit->changed($actor, 'business_partner.role_assigned', 'business_partner', $partner, $before, ['role' => $role->value]);

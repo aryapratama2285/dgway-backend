@@ -283,3 +283,13 @@ The "meaning" column is taken from the server message (‹…› = value filled 
 | `PAYMENT_REFERENCE_REQUIRED` | 422 | A payment with method `OTHER` (at `POST /sales` with payments, `POST /sales/{id}/confirm`, the credit-override confirm, or `POST /sales/{id}/payments`) has neither a `reference` nor `notes` describing it (`details.field` = `…reference`). Also enforced by `pay_other_described_check`. |
 | `PAYMENT_METHOD_INVALID` | 422 | Unchanged code; the accepted methods are now `CASH`, `BANK_TRANSFER`, `QRIS`, `OTHER`. |
 | `ACCESS_DENIED` | 403 | Also for `POST /sales/{id}/reverse` (`sales.reverse`), `POST /payments/{id}/reverse` (`payments.reverse`) and `POST /sales/{id}/returns` (`sales.return`) without the permission. |
+
+## F5A additions (operational hardening, STAFF role, password change)
+
+| Code | HTTP | When |
+| --- | --- | --- |
+| `CURRENT_PASSWORD_INVALID` | 422 | `POST /auth/password`: the current password is wrong (`details.field` = `current_password`). Deliberately not 401, so the app does not treat it as an expired session. After a lost answer, a retry also gets this code if the first request already changed the password. |
+| `PASSWORD_TOO_SHORT` | 422 | `POST /auth/password`: the new password is shorter than the minimum (`details.min_length`, default 10). |
+| `PASSWORD_UNCHANGED` | 422 | `POST /auth/password`: the new password equals the current one. |
+| `ACCESS_DENIED` | 403 | Also for a STAFF operator (or any role without the permission) on: `POST /inventory/losses`, `/regrades`, `/recoveries`, `/supplier-returns` (`inventory.correct`); creating a customer, assigning a customer role or changing customer terms with a payment term > 0 days or a credit limit (`partners.manage_credit`); every command on `nodes` and `locations` (`network.manage`). The server console (system actor) is exempt from the last two (bootstrap). |
+| `TOO_MANY_REQUESTS` | 429 | Also for `POST /auth/password` after 5 attempts per minute per operator. |

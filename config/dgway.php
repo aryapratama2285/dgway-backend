@@ -15,6 +15,19 @@ return [
     'token_ttl_days' => (int) env('DGWAY_TOKEN_TTL_DAYS', 30),
 
     /*
+    | F5A — reverse proxies whose X-Forwarded-For/-Proto/-Host headers are
+    | trusted (comma-separated IPs or CIDRs, or '*'). Empty = none (direct
+    | exposure, development). Production behind Caddy: the proxy's network.
+    */
+    'trusted_proxies' => env('DGWAY_TRUSTED_PROXIES', ''),
+
+    /*
+    | F5A — the scheduler writes this file every minute; `dgway:doctor
+    | --production` warns when it is older than 5 minutes (no scheduler running).
+    */
+    'scheduler_heartbeat_path' => storage_path('framework/scheduler-heartbeat'),
+
+    /*
     | Minimum operator password length.
     */
     'password_min_length' => 10,
@@ -78,18 +91,19 @@ return [
     | A5-B §18–19 — authorization extension point. Use cases ask the
     | Authorizer for a Permission (App\Application\Shared\Security\Permission);
     | this map decides which role holds which permission ('*' = all).
-    | Only OWNER exists today (users_role_check). The other roles are listed
-    | so the extension point is visible; they hold nothing and cannot be
-    | assigned until the role CHECK is widened in a later phase.
+    |
+    | F5A (decision D1): OWNER and STAFF exist (users_role_check). STAFF does
+    | routine work, which needs no permission, and holds NONE of the sensitive
+    | permissions: reversals, customer returns, stock adjustment/correction,
+    | credit terms and limit overrides, PO close/cancel, UOM conversions,
+    | network and print configuration. Grant one explicitly here if the owner
+    | ever decides otherwise (e.g. 'STAFF' => ['sales.return']).
+    | Operator administration has no API at all (server console only).
     */
     'authorization' => [
         'role_permissions' => [
             'OWNER' => ['*'],
-            'ADMIN' => [],
-            'CASHIER' => [],
-            'WAREHOUSE' => [],
-            'PURCHASING' => [],
-            'DELIVERY' => [],
+            'STAFF' => [],
         ],
     ],
 

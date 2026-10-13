@@ -23,9 +23,27 @@ final class DbPartnerQueries implements PartnerQueries
     public function partners(StatusFilter $status, ?PartnerRole $role, ?CustomerType $customerType, ?string $search, PageRequest $page): Page
     {
         $q = $this->db->table('business_partners as p')->select('p.*');
-        DbCatalogQueries::applyStatus($q, $status, 'p.is_active');
+        $hasRoleFilter = $role !== null || $customerType !== null;
 
-        if ($role !== null || $customerType !== null) {
+        if (!$hasRoleFilter || $status === StatusFilter::ACTIVE) {
+            DbCatalogQueries::applyStatus($q, $status, 'p.is_active');
+        } elseif ($status === StatusFilter::INACTIVE) {
+            $q->where(function (Builder $inactive) use ($role, $customerType): void {
+                $inactive->where('p.is_active', false)
+                    ->orWhereExists(function (Builder $r) use ($role, $customerType): void {
+                        $r->selectRaw('1')->from('business_partner_roles as r')->whereColumn('r.partner_id', 'p.id');
+                        if ($role !== null) {
+                            $r->where('r.role', $role->value);
+                        }
+                        if ($customerType !== null) {
+                            $r->where('r.role', PartnerRole::CUSTOMER->value)->where('r.customer_type', $customerType->value);
+                        }
+                        $r->where('r.is_active', false);
+                    });
+            });
+        }
+
+        if ($hasRoleFilter) {
             $q->whereExists(function (Builder $r) use ($role, $customerType, $status): void {
                 $r->selectRaw('1')->from('business_partner_roles as r')->whereColumn('r.partner_id', 'p.id');
                 if ($role !== null) {
@@ -34,7 +52,9 @@ final class DbPartnerQueries implements PartnerQueries
                 if ($customerType !== null) {
                     $r->where('r.role', PartnerRole::CUSTOMER->value)->where('r.customer_type', $customerType->value);
                 }
-                DbCatalogQueries::applyStatus($r, $status, 'r.is_active');
+                if ($status === StatusFilter::ACTIVE) {
+                    DbCatalogQueries::applyStatus($r, $status, 'r.is_active');
+                }
             });
         }
 

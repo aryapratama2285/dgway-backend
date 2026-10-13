@@ -150,6 +150,8 @@ final class BusinessPartnerApiTest extends MasterDataTestCase
         $this->assertSame(0, $this->get_('business-partners?role=SUPPLIER&status=active')->json('meta.total'));
         $this->assertSame(1, $this->get_('business-partners?role=CUSTOMER&status=active')->json('meta.total'));
         $this->assertSame(1, $this->get_('business-partners?role=SUPPLIER&status=all')->json('meta.total'));
+        $this->assertSame(1, $this->get_('business-partners?role=SUPPLIER&status=inactive')->json('meta.total'));
+        $this->assertSame(0, $this->get_('business-partners?role=CUSTOMER&status=inactive')->json('meta.total'));
     }
 
     public function test_update_contact_and_address_and_deactivate_partner(): void
@@ -163,6 +165,7 @@ final class BusinessPartnerApiTest extends MasterDataTestCase
         $this->cmd('PATCH', "business-partners/{$id}", ['code' => 'NEW'])->assertStatus(422);
 
         $this->cmd('POST', "business-partners/{$id}/deactivate")->assertOk()->assertJsonPath('data.is_active', false)->assertJsonPath('data.customer.usable', false);
+        $this->assertSame(1, $this->get_('business-partners?role=CUSTOMER&status=inactive')->json('meta.total'));
         $this->get_("business-partners/{$id}")->assertOk()->assertJsonPath('data.name', 'Bakso Monalisa');
 
         $actions = DB::table('audit_logs')->where('entity_id', $id)->orderBy('occurred_at')->pluck('action')->all();

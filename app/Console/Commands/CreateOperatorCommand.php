@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Application\Identity\RegisterOperator;
+use App\Domain\Identity\Role;
 use App\Domain\Shared\Identity\Actor;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
@@ -19,19 +20,26 @@ final class CreateOperatorCommand extends Command
     protected $signature = 'dgway:operator:create
         {email : Operator email (login name)}
         {--name= : Display name}
+        {--role=OWNER : OWNER or STAFF (F5A; STAFF holds no sensitive permission)}
         {--password-stdin : Read the password from STDIN instead of prompting}';
 
-    protected $description = 'Create a DG Way owner/operator account';
+    protected $description = 'Create a DG Way operator account (OWNER or STAFF)';
 
     public function handle(RegisterOperator $register): int
     {
+        $role = Role::tryFrom(strtoupper(trim((string) $this->option('role'))));
+        if ($role === null) {
+            $this->error('Unknown role: use OWNER or STAFF.');
+
+            return self::FAILURE;
+        }
         $name = (string) ($this->option('name') ?: $this->ask('Name'));
         $password = $this->option('password-stdin')
             ? rtrim((string) stream_get_contents(STDIN), "\r\n")
             : (string) $this->secret('Password (min. '.config('dgway.password_min_length').' characters)');
 
         try {
-            $account = $register->execute(Actor::system('console'), $name, (string) $this->argument('email'), $password);
+            $account = $register->execute(Actor::system('console'), $name, (string) $this->argument('email'), $password, $role);
         } catch (InvalidArgumentException $e) {
             $this->error($e->getMessage());
 

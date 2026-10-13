@@ -4,8 +4,13 @@ Internal operating system for DG Way's physical commerce & distribution business
 (eggs as the entry product). This repository is the **Laravel/PHP + PostgreSQL
 REST API**. The Flutter Android client is a separate project (Phase A5).
 
-> Status: **Phase A5-C — printing/scanning contract, lot upstream facts, BACKEND FREEZE** (see `docs/PHASE_A5C_REPORT.md`).
-> Previous: **Phase A5-B — Operational readiness + inventory batch/lot foundation**
+> Status: **Phase F5A — operational hardening** (see `docs/PHASE_F5A_REPORT.md`): STAFF role and
+> permissions in the auth payload, self-service password change, console operator administration,
+> purchasing units (TRAY, BOX, PACK, ROLL, LITER — sizes per product), trusted proxies, bounded logs,
+> scheduler maintenance jobs and stricter `dgway:doctor --production`.
+> Built on F1–F4 (F3 inventory operations, F4A procurement lifecycle, F4B sales & basic finance) and
+> **Phase A5-C — printing/scanning contract, lot upstream facts** (see `docs/PHASE_A5C_REPORT.md`).
+> Earlier: **Phase A5-B — Operational readiness + inventory batch/lot foundation**
 > (on top of A1–A4 and the A5 data-evolution addendum). Every received quantity
 > becomes a traceable lot (supplier → receipt → FIFO sale allocation → customer,
 > returns back into the original lot); owner dashboard, daily activity, search,
@@ -40,6 +45,11 @@ php artisan dgway:trace SAL-261003-001        # follow a transaction: documents,
 php artisan dgway:trace LOT-261003-001        # follow a lot: supplier, receipt, dispositions, lineage, sales, customers, audit
 php artisan dgway:schema:catalog              # regenerate docs/SCHEMA_CATALOG.md
 php artisan dgway:doctor --production         # production configuration sanity (exit 1 = unsafe)
+# operators (F5A; there is no operator API)
+printf '%s' "$PASSWORD" | php artisan dgway:operator:create staff@example.com --name="Staf" --role=STAFF --password-stdin
+php artisan dgway:operator:list
+php artisan dgway:operator:deactivate staff@example.com          # also signs the operator out on every phone
+printf '%s' "$PASSWORD" | php artisan dgway:operator:reset-password staff@example.com --password-stdin
 curl http://localhost:8000/api/v1/health/ready
 ```
 
@@ -66,7 +76,7 @@ curl http://localhost:8000/api/v1/health/ready
 | docs/DATA_EVOLUTION_STRATEGY.md | Generation-1 data contract: stable identity, ownership, ledger/financial continuity, reconciliation, Project B readiness |
 | docs/SCHEMA_CATALOG.md | Generated schema catalog (ownership, immutability, constraints, cross-context FKs) |
 | docs/SALES_AND_RECEIVABLES.md | Sale/payment/return model, credit limit, receivable calculation, locking |
-| docs/PHASE_A1_REPORT.md … docs/PHASE_A5C_REPORT.md | Phase verification reports (A5-C includes the backend freeze review) |
+| docs/PHASE_A1_REPORT.md … docs/PHASE_A5C_REPORT.md, docs/PHASE_F5A_REPORT.md | Phase verification reports (A5-C includes the backend freeze review; F5A = operational hardening) |
 | docs/evidence/ | Raw outputs: test runs, migrations, live smoke tests |
 
 Remaining documents from the master brief (ANDROID_BUILD,

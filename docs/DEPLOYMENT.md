@@ -30,6 +30,9 @@ no containers required. Local development: SETUP.md.
 | `DGWAY_TOKEN_TTL_DAYS` | 30 (default) | — |
 | `DGWAY_IDEMPOTENCY_RETENTION_DAYS` | 30 (must exceed the longest client retry window) | — |
 | `DGWAY_WALK_IN_CUSTOMER_CODE` | `WALK-IN` (default) | — |
+| `DGWAY_TRUSTED_PROXIES` | F5A: the reverse proxy's address/network (e.g. `172.16.0.0/12` for a Docker network, or `127.0.0.1`); `*` only when the app port is reachable solely through the proxy | WARN when empty |
+| `LOG_STACK` | F5A: `daily` (bare metal, `LOG_DAILY_DAYS=14`) or `stderr` (containers, rotated by Docker) — never `single` | FAIL on `single` |
+| `APP_URL` | must start with `https://` | FAIL otherwise |
 
 `.env` is never committed and never shipped in an archive.
 
@@ -62,11 +65,26 @@ curl -s https://api.<domain>/api/v1/health/ready    # {"data":{"status":"ready",
 password through STDIN/prompt — the first OWNER. There is no default account
 or password, and re-running never changes an existing password.
 
-Cron (scheduler):
+Cron (scheduler) — or, in containers, a `php artisan schedule:work` service:
 ```
 * * * * * cd /srv/dgway && php artisan schedule:run >> /dev/null 2>&1
 ```
-(Prunes idempotency keys daily 03:15 WIB.)
+Jobs (WIB): 03:15 prune idempotency keys · 03:25 `sanctum:prune-expired --hours=24` · 03:35
+`dgway:inventory:verify` (a mismatch is logged at CRITICAL) · every minute a heartbeat file that
+`dgway:doctor --production` checks (WARN when older than 5 minutes).
+
+Operators (F5A — there is no operator API; everything is audited):
+```
+printf '%s' "$PW" | php artisan dgway:operator:create kasir@<domain> --name="Kasir" --role=STAFF --password-stdin
+php artisan dgway:operator:list
+php artisan dgway:operator:deactivate kasir@<domain>            # revokes every device token at once
+php artisan dgway:operator:deactivate kasir@<domain> --activate
+printf '%s' "$PW" | php artisan dgway:operator:reset-password kasir@<domain> --password-stdin
+```
+STAFF does routine work (sales, payments, purchasing, receiving, consumption, cash customers,
+products, suppliers) and holds none of the sensitive permissions (reversals, returns, stock
+adjustment/correction, credit terms, PO close/cancel, UOM conversions, network and print settings).
+Operators change their own password in the app (`POST /auth/password`; other phones are signed out).
 
 Nginx: root `/srv/dgway/public`, `try_files $uri /index.php?$query_string;`,
 PHP-FPM socket, `client_max_body_size 2m`, TLS only, HSTS.
@@ -114,7 +132,9 @@ So a support case "my sale failed" goes: X-Request-Id from the app → log lines
 ## 7. Security checklist
 
 - HTTPS only; `APP_DEBUG=false`; doctor green.
-- Operator passwords ≥ 10 characters, created by the owner on the server (STDIN), never e-mailed.
+- Operator passwords ≥ 10 characters, created by the owner on the server (STDIN), never e-mailed;
+  each person has their own account (OWNER or STAFF), never shared.
+- Behind the proxy, set `DGWAY_TRUSTED_PROXIES` so the login limiter and the logs see the real client IP.
 - Tokens are per device (`device_name`); deactivating an operator revokes access immediately.
 - Backups encrypted and off-site; restore drill quarterly.
 - No default credentials exist anywhere in the code base.

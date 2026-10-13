@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\Partner;
 
 use App\Application\Shared\Audit\AuditTrail;
+use App\Application\Shared\Security\Authorizer;
+use App\Application\Shared\Security\Permission;
 use App\Application\Shared\Identity\IdentityGenerator;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Partner\BusinessPartner;
@@ -31,6 +33,7 @@ final class CreateBusinessPartner
         private readonly IdentityGenerator $ids,
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
+        private readonly Authorizer $authorizer,
     ) {
     }
 
@@ -41,13 +44,18 @@ final class CreateBusinessPartner
             $partyType = PartyType::tryFrom(strtoupper((string) ($input['party_type'] ?? '')))
                 ?? throw InvariantViolation::because('PARTY_TYPE_INVALID', 'party_type must be INDIVIDUAL or ORGANIZATION.', ['field' => 'party_type']);
 
+            $customerRole = isset($input['customer']) ? PartnerInput::customerRole($input['customer']) : null;
+            if ($customerRole !== null && PartnerInput::grantsCredit($customerRole->terms())) {
+                $this->authorizer->authorizeIfOperator($actor, Permission::MANAGE_CUSTOMER_CREDIT);
+            }
+
             $partner = BusinessPartner::register(
                 $this->ids->next(),
                 BusinessCode::of((string) $input['code'], 'Partner code'),
                 Name::of((string) $input['name']),
                 $partyType,
                 isset($input['supplier']) ? PartnerInput::supplierRole($input['supplier']) : null,
-                isset($input['customer']) ? PartnerInput::customerRole($input['customer']) : null,
+                $customerRole,
                 PartnerInput::legalName($input['legal_name'] ?? null),
                 PartnerInput::phone($input['phone'] ?? null),
                 PartnerInput::email($input['email'] ?? null),

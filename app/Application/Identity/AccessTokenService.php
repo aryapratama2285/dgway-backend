@@ -11,4 +11,10 @@ interface AccessTokenService
 
     /** Revokes one token of the operator. Returns false if it did not exist. */
     public function revoke(string $operatorId, string $tokenId): bool;
+
+    /**
+     * F5A: revokes every token of the operator except [$keepTokenId]
+     * (null = all of them). Returns how many were revoked.
+     */
+    public function revokeAllExcept(string $operatorId, ?string $keepTokenId): int;
 }

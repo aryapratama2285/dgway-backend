@@ -1323,7 +1323,7 @@ Owner **Identity** · aggregate Operator · kind **master** · migration **prese
 
 Constraints:
 - CHECK `users_email_lowercase_check`: `CHECK (((email)::text = lower((email)::text)))`
-- CHECK `users_role_check`: `CHECK (((role)::text = 'OWNER'::text))`
+- CHECK `users_role_check`: `CHECK (((role)::text = ANY ((ARRAY['OWNER'::character varying, 'STAFF'::character varying])::text[])))`
 - PK `users_pkey`: `PRIMARY KEY (id)`
 - UNIQUE `users_email_unique`: `UNIQUE (email)`
 

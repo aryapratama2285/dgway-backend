@@ -46,6 +46,8 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['auth:sanctum', EnsureOperatorIsActive::class, 'throttle:api'])->group(function (): void {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
         Route::get('auth/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
+        // F5A: self-service password change (outside the idempotency group: the body holds passwords).
+        Route::post('auth/password', [AuthController::class, 'changePassword'])->middleware('throttle:password')->name('api.v1.auth.password');
 
         // ── reads ────────────────────────────────────────────────────────
         // Operational readiness (A5-B): defaults, owner dashboard, daily activity, search.

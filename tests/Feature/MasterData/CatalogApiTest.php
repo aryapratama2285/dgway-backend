@@ -246,7 +246,7 @@ final class CatalogApiTest extends MasterDataTestCase
 
     public function test_uom_reference_list(): void
     {
-        $this->assertSame(['IKAT', 'KG', 'PCS'], array_column($this->get_('uoms')->json('data'), 'code'));
+        $this->assertSame(['BOX', 'IKAT', 'KG', 'LITER', 'PACK', 'PCS', 'ROLL', 'TRAY'], array_column($this->get_('uoms')->json('data'), 'code'));
     }
 
     public function test_mutation_without_idempotency_key_is_refused(): void

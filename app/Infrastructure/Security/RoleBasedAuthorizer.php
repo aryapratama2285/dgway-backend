@@ -8,6 +8,7 @@ use App\Application\Identity\OperatorDirectory;
 use App\Application\Shared\Security\AccessDenied;
 use App\Application\Shared\Security\Authorizer;
 use App\Application\Shared\Security\Permission;
+use App\Domain\Identity\Role;
 use App\Domain\Shared\Identity\Actor;
 
 /**
@@ -31,13 +32,26 @@ final class RoleBasedAuthorizer implements Authorizer
         if ($account === null || ! $account->isActive) {
             return false;
         }
-        $granted = (array) config("dgway.authorization.role_permissions.{$account->role->value}", []);
-
-        return in_array('*', $granted, true) || in_array($permission->value, $granted, true);
+        return in_array($permission->value, $this->permissionsOf($account->role), true);
     }
 
     public function authorize(Actor $actor, Permission $permission): void
     {
         $this->allows($actor, $permission) || throw new AccessDenied($permission);
+    }
+
+    public function authorizeIfOperator(Actor $actor, Permission $permission): void
+    {
+        if (! $actor->isSystem()) {
+            $this->authorize($actor, $permission);
+        }
+    }
+
+    public function permissionsOf(Role $role): array
+    {
+        $granted = (array) config("dgway.authorization.role_permissions.{$role->value}", []);
+        $all = array_map(fn (Permission $p) => $p->value, Permission::cases());
+
+        return in_array('*', $granted, true) ? $all : array_values(array_intersect($all, $granted));
     }
 }

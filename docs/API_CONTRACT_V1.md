@@ -98,8 +98,25 @@ for reporting/receipts; it is cash-only either way).
 ## 9. Core mobile flow
 
 ### 9.1 `POST /auth/login` (public, throttled)
-Request `{ "email", "password", "device_name" }` → `200 { "data": { "token", "token_type": "Bearer", "expires_at", "operator": { "id", "name", "email", "role" } } }`.
+Request `{ "email", "password", "device_name" }` → `200 { "data": { "token", "token_type": "Bearer", "expires_at", "operator": { "id", "name", "email", "role", "is_active", "permissions" } } }`.
 Errors: 401 `INVALID_CREDENTIALS`, 403 `OPERATOR_INACTIVE`, 422, 429. `POST /auth/logout` revokes the current token; `GET /auth/me` returns the operator.
+
+**F5A — roles and permissions.** `role` is `OWNER` or `STAFF`. `permissions` (additive) lists the
+sensitive permission values the role holds: every value for OWNER, none for STAFF by default
+(`sales.override_credit_limit`, `settings.manage_print`, `inventory.adjust`, `inventory.correct`,
+`procurement.close`, `procurement.cancel`, `procurement.reverse`, `catalog.manage_uom_conversion`,
+`sales.reverse`, `payments.reverse`, `sales.return`, `partners.manage_credit`, `network.manage`).
+The app shows or hides actions from this list; the server authorizes every command again
+(403 `ACCESS_DENIED`, `details.permission`). Routine work — sales, payments, purchase orders,
+receiving, internal consumption, cash customers, suppliers, products, categories — needs no permission.
+Operator administration has no API (server console: `dgway:operator:create --role=`, `:list`,
+`:deactivate`, `:reset-password`).
+
+**F5A — `POST /auth/password`** (bearer, throttled 5/min per operator, **no** Idempotency-Key:
+the body holds passwords and the idempotency store keeps a hash of command bodies).
+Request `{ "current_password", "new_password" }` → `200 { "data": { "password_changed": true, "other_sessions_revoked": 2 } }`.
+Every other device token of the operator is revoked; the calling device stays signed in.
+Errors: 422 `CURRENT_PASSWORD_INVALID` (never 401), `PASSWORD_TOO_SHORT`, `PASSWORD_UNCHANGED`, `VALIDATION_FAILED`; 429.
 
 ### 9.2 Master data
 `GET /products?q=&status=active&page=` → `{ id, sku, name, category_id, base_uom{ code, precision }, description, is_active, version }`.
@@ -223,6 +240,7 @@ Kept in sync by `MobileApiContractTest::test_every_api_route_is_documented_in_th
 | POST | `auth/login` | public | — | AuthController@login |
 | POST | `auth/logout` | bearer | — | AuthController@logout |
 | GET | `auth/me` | bearer | — | AuthController@me |
+| POST | `auth/password` | bearer | — | AuthController@changePassword |
 | GET | `business-partners` | bearer | — | BusinessPartnerController@index |
 | POST | `business-partners` | bearer | yes | BusinessPartnerController@store |
 | GET | `business-partners/{id}` | bearer | — | BusinessPartnerController@show |

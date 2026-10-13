@@ -34,7 +34,9 @@ final class DoctorCommandTest extends DatabaseTestCase
         \Illuminate\Support\Facades\DB::table('users')->insert(['id' => (string) \Illuminate\Support\Str::uuid7(), 'name' => 'Owner', 'email' => 'o@dgway.test', 'password' => bcrypt('x-very-long-pass'), 'role' => 'OWNER', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $secret = 'S3cure-'.bin2hex(random_bytes(8));
         $this->app['env'] = 'production';
-        [$code, $r, $out] = $this->run_(['app.debug' => false, 'app.key' => 'base64:'.base64_encode(random_bytes(32)), 'database.connections.pgsql.password' => $secret]);
+        [$code, $r, $out] = $this->run_(['app.debug' => false, 'app.key' => 'base64:'.base64_encode(random_bytes(32)), 'database.connections.pgsql.password' => $secret,
+            // F5A production rules: HTTPS URL and bounded logs (independent of the local .env)
+            'app.url' => 'https://api.dgway.test', 'logging.default' => 'stack', 'logging.channels.stack.channels' => ['daily']]);
         $this->assertSame('OK', $r['APP_KEY']);
         $this->assertSame('OK', $r['DB_PASSWORD']);
         $this->assertSame('OK', $r['migrations']);

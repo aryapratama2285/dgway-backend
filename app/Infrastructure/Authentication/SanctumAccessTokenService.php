@@ -43,4 +43,13 @@ final class SanctumAccessTokenService implements AccessTokenService
             ->where('tokenable_id', $operatorId)
             ->delete() > 0;
     }
+
+    public function revokeAllExcept(string $operatorId, ?string $keepTokenId): int
+    {
+        return PersonalAccessToken::query()
+            ->where('tokenable_type', (new User())->getMorphClass())
+            ->where('tokenable_id', $operatorId)
+            ->when($keepTokenId !== null, fn ($q) => $q->whereKeyNot($keepTokenId))
+            ->delete();
+    }
 }

@@ -63,6 +63,8 @@ final class RecordInventoryOperation
 
     public function recordLoss(Actor $actor, string $nodeId, string $productId, string $quantity, string $reason, ?string $uom = null): InventoryOperation
     {
+        $this->authorizer->authorizeIfOperator($actor, Permission::CORRECT_STOCK);
+
         return $this->run($actor, $nodeId, $productId, function ($id, $no, $node, $product, $date, $at) use ($quantity, $reason, $uom) {
             return InventoryOperation::loss($id, $no, $node->id(), $product->id(), MasterDataGuard::baseQuantity($product, $quantity, $uom), $reason, $date, $at);
         });
@@ -70,6 +72,8 @@ final class RecordInventoryOperation
 
     public function regrade(Actor $actor, string $nodeId, string $fromProductId, string $toProductId, string $quantity, string $reason, ?string $uom = null): InventoryOperation
     {
+        $this->authorizer->authorizeIfOperator($actor, Permission::CORRECT_STOCK);
+
         return $this->run($actor, $nodeId, $fromProductId, function ($id, $no, $node, $product, $date, $at) use ($toProductId, $quantity, $reason, $uom) {
             $target = $this->guard->activeProduct($toProductId, 'to_product_id');
             MasterDataGuard::assertBaseUom($target, $product->baseUom()->code);
@@ -80,6 +84,7 @@ final class RecordInventoryOperation
 
     public function recover(Actor $actor, string $nodeId, string $productId, string $quantity, string $fromBucket, string $reason, ?string $uom = null): InventoryOperation
     {
+        $this->authorizer->authorizeIfOperator($actor, Permission::CORRECT_STOCK);
         $bucket = StockBucket::tryFrom(strtoupper($fromBucket))
             ?? throw InvariantViolation::because('BUCKET_INVALID', "Unknown stock bucket '{$fromBucket}'.", ['field' => 'from_bucket']);
 
@@ -90,6 +95,8 @@ final class RecordInventoryOperation
 
     public function shipSupplierReturn(Actor $actor, string $nodeId, string $productId, string $quantity, string $reason, ?string $uom = null): InventoryOperation
     {
+        $this->authorizer->authorizeIfOperator($actor, Permission::CORRECT_STOCK);
+
         return $this->run($actor, $nodeId, $productId, fn ($id, $no, $node, $product, $date, $at) => InventoryOperation::supplierReturn(
             $id, $no, $node->id(), $product->id(), MasterDataGuard::baseQuantity($product, $quantity, $uom), $reason, $date, $at,
         ));

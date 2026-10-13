@@ -72,6 +72,25 @@ final class EloquentOperatorDirectory implements OperatorDirectory, OperatorRegi
         User::query()->whereKey($operatorId)->update(['is_active' => $active]);
     }
 
+    public function changePassword(string $operatorId, string $plainPassword): void
+    {
+        $user = User::query()->findOrFail($operatorId);
+        $user->password = $plainPassword; // hashed by the model's 'hashed' cast
+        $user->save();
+    }
+
+    public function findByEmail(string $email): ?OperatorAccount
+    {
+        $user = User::query()->where('email', mb_strtolower(trim($email)))->first();
+
+        return $user === null ? null : self::toAccount($user);
+    }
+
+    public function all(): array
+    {
+        return User::query()->orderBy('email')->get()->map(fn (User $u) => self::toAccount($u))->values()->all();
+    }
+
     private static function toAccount(User $user): OperatorAccount
     {
         return new OperatorAccount(

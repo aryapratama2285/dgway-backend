@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\Partner;
 
 use App\Application\Shared\Audit\AuditTrail;
+use App\Application\Shared\Security\Authorizer;
+use App\Application\Shared\Security\Permission;
 use App\Application\Shared\Command\Patch;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Partner\BusinessPartner;
@@ -24,6 +26,7 @@ final class ChangePartnerRole
         private readonly BusinessPartnerRepository $partners,
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
+        private readonly Authorizer $authorizer,
     ) {
     }
 
@@ -41,7 +44,13 @@ final class ChangePartnerRole
                 }
                 if ($patch->has('term_days') || $patch->has('credit_limit')) {
                     $data = array_filter(['term_days' => $patch->get('term_days'), 'credit_limit' => $patch->get('credit_limit')], fn ($k) => $patch->has($k), ARRAY_FILTER_USE_KEY);
-                    $changed = $partner->changeCreditTerms(PartnerInput::terms($data, $current?->terms())) || $changed;
+                    $terms = PartnerInput::terms($data, $current?->terms());
+                    if ($current === null || ! $terms->equals($current->terms())) {
+                        // F5A: any change of a customer's credit terms (granting, raising,
+                        // lowering or removing credit) is an owner decision.
+                        $this->authorizer->authorizeIfOperator($actor, Permission::MANAGE_CUSTOMER_CREDIT);
+                    }
+                    $changed = $partner->changeCreditTerms($terms) || $changed;
                 }
             } else {
                 if ($patch->has('term_days')) {

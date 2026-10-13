@@ -7,7 +7,7 @@ namespace App\Application\Shared\Security;
 /**
  * Sensitive actions that need an explicit permission on top of "an active,
  * authenticated operator". Routine operations need no entry here; they are
- * open to every active operator (MVP: OWNER only).
+ * open to every active operator (OWNER and STAFF).
  *
  * Extension point (A5-B §19): future roles (ADMIN, CASHIER, WAREHOUSE,
  * PURCHASING, DELIVERY) are granted permissions in config/dgway.php
@@ -39,4 +39,18 @@ enum Permission: string
     case REVERSE_PAYMENT = 'payments.reverse';
     /** F4B: record a customer return (stock back, credit/refund). */
     case RECORD_CUSTOMER_RETURN = 'sales.return';
+
+    /**
+     * F5A: stock corrections other than ADJUSTMENT — loss (write-off), regrade,
+     * recovery (quarantine/damaged release back to AVAILABLE) and supplier return.
+     * Internal consumption stays routine (no permission).
+     */
+    case CORRECT_STOCK = 'inventory.correct';
+    /**
+     * F5A: grant or change customer credit — payment term > 0 days or a credit
+     * limit. Creating or editing a cash customer (term 0, no limit) is routine.
+     */
+    case MANAGE_CUSTOMER_CREDIT = 'partners.manage_credit';
+    /** F5A: create, change, (de)activate nodes and locations (network configuration). */
+    case MANAGE_NETWORK = 'network.manage';
 }

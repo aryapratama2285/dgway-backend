@@ -174,5 +174,22 @@ final class DomainServiceProvider extends ServiceProvider
             $app->make(AuditRecorder::class),
             (int) config('dgway.password_min_length'),
         ));
+        // F5A: console operator administration
+        $this->app->bind(\App\Application\Identity\AdministerOperator::class, fn (Application $app) => new \App\Application\Identity\AdministerOperator(
+            $app->make(OperatorRegistry::class),
+            $app->make(AccessTokenService::class),
+            $app->make(TransactionManager::class),
+            $app->make(AuditRecorder::class),
+            (int) config('dgway.password_min_length'),
+        ));
+        // F5A: self-service password change
+        $this->app->bind(\App\Application\Identity\ChangeOperatorPassword::class, fn (Application $app) => new \App\Application\Identity\ChangeOperatorPassword(
+            $app->make(OperatorDirectory::class),
+            $app->make(OperatorRegistry::class),
+            $app->make(AccessTokenService::class),
+            $app->make(TransactionManager::class),
+            $app->make(AuditRecorder::class),
+            (int) config('dgway.password_min_length'),
+        ));
     }
 }

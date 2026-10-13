@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\Network;
 
 use App\Application\Shared\Audit\AuditTrail;
+use App\Application\Shared\Security\Authorizer;
+use App\Application\Shared\Security\Permission;
 use App\Application\Shared\Transaction\TransactionManager;
 use App\Domain\Network\Location;
 use App\Domain\Network\LocationRepository;
@@ -19,11 +21,14 @@ final class DeactivateLocation
         private readonly NodeRepository $nodes,
         private readonly TransactionManager $tx,
         private readonly AuditTrail $audit,
+        private readonly Authorizer $authorizer,
     ) {
     }
 
     public function execute(Actor $actor, string $locationId): Location
     {
+        $this->authorizer->authorizeIfOperator($actor, Permission::MANAGE_NETWORK);
+
         return $this->tx->run(function () use ($actor, $locationId): Location {
             $location = $this->locations->getForUpdate(Id::fromString($locationId));
             $before = $location->snapshot();

@@ -65,6 +65,16 @@ final class PartnerInput
         return CustomerRole::start(self::customerType($data['customer_type'] ?? null), self::terms($data), $data['notes'] ?? null);
     }
 
+    /**
+     * F5A: true when customer terms extend credit (a payment term over 0 days
+     * or any credit limit). Granting or changing that needs
+     * Permission::MANAGE_CUSTOMER_CREDIT; a cash customer does not.
+     */
+    public static function grantsCredit(PaymentTerms $terms): bool
+    {
+        return $terms->termDays > 0 || $terms->creditLimit !== null;
+    }
+
     public static function customerType(mixed $raw): CustomerType
     {
         return CustomerType::tryFrom(strtoupper((string) $raw))
