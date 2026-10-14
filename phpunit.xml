@@ -31,7 +31,6 @@
         <env name="DB_PORT" value="5432"/>
         <env name="DB_DATABASE" value="dgway_test"/>
         <env name="DB_USERNAME" value="dgway"/>
-        <env name="DB_PASSWORD" value="dgway_local"/>
         <env name="DB_URL" value=""/>
         <env name="DGWAY_BUSINESS_TIMEZONE" value="Asia/Jakarta"/>
         <env name="MAIL_MAILER" value="array"/>
